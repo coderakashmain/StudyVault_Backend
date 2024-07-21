@@ -1,0 +1,19 @@
+{
+  "name": "mpc",
+  "version": "1.0.0",
+  "description": "This is an website where you can download all previeous year question paper of mpc autonomous college.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "author": "Akash and Jitu",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.10.3",
+    "nodemon": "^3.1.4"
+  }
+}
