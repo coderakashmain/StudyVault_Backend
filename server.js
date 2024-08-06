@@ -4,6 +4,10 @@ const multer = require('multer');
 const path = require('path');
 const {connectionUserdb,connectionPaperdb} = require('./db');
 const jwt = require('jsonwebtoken');
+// const { error } = require('console');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const bodyParser = require('body-parser');
 const { error } = require('console');
 
 
@@ -12,18 +16,9 @@ const SECRET_KEY = '6370';
 
 app.use(cors());
 app.use(express.json());
+app.use(bodyParser.json());
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadDir = path.join(__dirname, 'uploads');
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      cb(null, `${Date.now()}-${file.originalname}`);
-    },
-  });
 
-  const upload = multer({ storage });
 
 
 app.post('/api/LogIn/Signup', (req, res) => {
@@ -98,17 +93,28 @@ app.get('/api/Filter', (req, res) => {
         query += ' AND departmentName = ?';
         params.push(req.query.departmentName);
       }
-      if (req.query.educationLevel) {
-        query += ' AND educationLevel = ?';
-        params.push(req.query.educationLevel);
+
+      if (req.query.educationLevelug === 'ug' || req.query.educationLevelpg === 'pg') {
+        let educationLevels = [];
+        if (req.query.educationLevelug === 'ug') {
+          educationLevels.push('ug');
+        }
+        if (req.query.educationLevelpg === 'pg') {
+          educationLevels.push('pg');
+        }
+        if (educationLevels.length > 0) {
+          query += ' AND educationLevel IN (?)';
+          params.push(educationLevels);
+        }
       }
+     
       if (req.query.fromDate) {
-        query += ' AND year >= ?';
+        query += ' AND years >= ?';
         params.push(req.query.fromDate);
       }
     
       if (req.query.toDate) {
-        query += ' AND year < ?';
+        query += ' AND years < ?';
         params.push(req.query.toDate);
       }  
     
@@ -116,16 +122,33 @@ app.get('/api/Filter', (req, res) => {
         query += ' AND departmentYear = ?';
         params.push(req.query.departmentYear);
       }
-    
-    
-        if (req.query.sem === 'true') {
-            query += ' AND sem = true';
-            params.push(req.query.sem);
+      
+        if(req.query.sem === 'true' || req.query.midSem === 'true' ){
+
+          
+          let conditions = [];
+          if (req.query.sem === 'true') {
+
+            conditions.push('sem = true');
+            
+            // params.push(req.query.sem);
         }
+
         if (req.query.midSem === 'true') {
-            query += ' AND midSem = true';
-            params.push(req.query.midSem);
+    
+          conditions.push('midSem = true');
+
+          // params.push(req.query.midSem);
         }
+
+        if(conditions.length > 0){
+          query += ' AND (' + conditions.join(' OR ') + ')';
+          params.push(conditions);
+        }
+       }
+    
+       
+        
         if (params.length === 0 && !req.query.sem && !req.query.midSem) {
             return res.status(400).json({ error: 'No filter parameters provided' });
         }
@@ -143,35 +166,193 @@ app.get('/api/Filter', (req, res) => {
 
 //Upload pdf
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads');
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
+
 app.post('/api/Profile', upload.single('file'), (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded or invalid file type' });
-    }
+    // if (!req.file) {
+    //   return res.status(400).json({ error: 'No file uploaded or invalid file type' });
+    // }
   
-    const { filename, path: filepath } = req.file;
+    // const { filename, path: filepath } = req.file;
   
    
-    const query = 'INSERT INTO papers (filename, filepath) VALUES (?, ?)';
-    connectionPaperdb.query(query, [filename, filepath], (err, results) => {
-      if (err) {
-        console.error('Error saving file info to database:', err);
-        return res.status(500).json({ error: 'Internal Server Error' });
-      }
-      res.status(200).json({ message: 'File uploaded and saved successfully', filePath: filepath });
-    });
+    // const query = 'INSERT INTO papers (filename, filepath) VALUES (?, ?)';
+    // connectionPaperdb.query(query, [filename, filepath], (err, results) => {
+    //   if (err) {
+    //     console.error('Error saving file info to database:', err);
+    //     return res.status(500).json({ error: 'Internal Server Error' });
+    //   }
+    //   res.status(200).json({ message: 'File uploaded and saved successfully', filepath: filepath });
+    // });
   });
 
   app.get('/api/Profile', (req, res) => {
-    const query = 'SELECT * FROM papers';
+
+
+    res.status(200).json(results);
+    // const query = 'SELECT * FROM papers';
   
-    connectionPaperdb.query(query, (err, results) => {
-      if (err) {
-        console.error('Error fetching files from database:', err);
-        return res.status(500).json({ error: 'Internal Server Error' });
-      }
-      res.status(200).json(results);
-    });
+    // connectionPaperdb.query(query, (err, results) => {
+    //   if (err) {
+    //     console.error('Error fetching files from database:', err);
+    //     return res.status(500).json({ error: 'Internal Server Error' });
+    //   }
+    //   res.status(200).json(results);
+    // });
   });
+
+
+  // Forgate page
+
+
+  const transporter = nodemailer.createTransport({
+    service : 'gmail',
+    auth : {
+      user : 'studyvaultteam@gmail.com',
+      pass : 'naxg tfzi skhv kwcj'
+    }
+  });
+
+  app.post('/api/LogIn/ForgatePw',(req,res)=>{
+    
+    const {email} = req.body;
+   
+
+      
+
+
+    const checkquery = 'SELECT * FROM users WHERE gmail = ?';
+    connectionUserdb.query(checkquery,[email],(err,results)=>{
+      const param=[];
+        if(err){
+          console.error('Database error',err);
+          return res.status(500).json({ error : 'Database error'})
+        }
+        if(results.length   === 0){
+          return res.status(409).json({error : 'Email not found'});
+        }
+
+        const user = results[0];
+        const now = new Date();
+        const lastOtpTime = new Date(user.lastOtpTime);
+        if(user.lastOtpTime && (now - lastOtpTime) < 30000){
+          return res.status(429).json({error : 'OTP already sent. Please wait 30 seconds before requesting another OTP'});
+        }
+        const firstname = results[0].firstname;
+        const lastname = results[0].lastname;
+
+        param.push(email);
+        console.log(param);
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const otpExpires  = new Date(Date.now() + 10 * 60000);
+
+        const query = 'UPDATE users SET otp = ?, otpExpires = ?, lastOtpTime = ? WHERE gmail = ?';
+
+        connectionUserdb.query(query,[otp,otpExpires,now,email],(err,results)=>{
+          if(err) {
+            console.error('Error in Database', err);
+            return res.status(410).json({error : 'Database error'});
+          }
+
+
+          const mailOptions = {
+            to: email,
+            from: "studyvaultteam@gmail.com",
+            subject: "StudyVault Password Reset OTP",
+            html: `
+                    <html>
+            <body style="font-family: Arial, sans-serif; color: #333;">
+              <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
+                <h1 style="text-align: center;">Welcome to StudyVault</h1>
+                <p style="text-align: center;font-size : 1.1rem"> Hi, ${firstname} ${lastname}</p>
+                <p>You requested to reset your password. Please use the following One-Time Password (OTP) to reset your password:</p>
+                <h2 style="text-align: center; margin: auto ; font-size : 2.4rem;">${otp}</h2>
+                <p>The OTP is valid for the next 10 minutes. If you did not request a password reset, please ignore this email.</p>
+                <h4>Best regards,</h4>
+                <h4>The StudyVault Team</h4>
+              </div>
+            </body>
+          </html>
+  `,
+          };
+          console.log(mailOptions);
+
+          transporter.sendMail(mailOptions, (err, info) => {
+            if (err) {
+              console.error('Email sending error:', err);
+              return res.status(500).json({ error: 'Email sending error' });
+            }
+            console.log('Email sent:', info.response);
+            return res.status(200).json('OTP sent');
+          });
+        });
+
+    });
+
+  });
+
+  app.post('/api/LogIn/verifyOtp',(req,res)=>{
+    const {otp,email} = req.body;
+    const checkquery = 'SELECT * FROM users WHERE gmail = ? AND otp = ?';
+    connectionUserdb.query(checkquery,[email,otp],(err,results)=>{
+
+      if(err){
+        console.error('Database query error:',err);
+        return res.status(500).json({error : 'Internal error '});
+        
+      }
+      if(results.length > 0){
+        const otpExpires = results[0].otpExpires;
+        console.log(results.length);
+        if(new Date(otpExpires) < new Date()){
+          return res.status(410).json({error : 'OTP expired'});
+        } 
+        
+        const upadateQuery = 'UPDATE users SET otp = NULL , otpExpires = NULL WHERE gmail = ?';
+
+        connectionUserdb.query(upadateQuery,[email],(err,results)=>{
+          if(err){
+            console.error('Error updating database', err);
+            return res.status(500).json({ error: 'Error updating database' });
+          }
+          return  res.status(200).json({message : 'OTP verified and reset successfully'});
+        });
+        
+        
+
+      }
+      else{
+        console.error('Incorrect OTP',err);
+        return res.status(409).json({error : 'Incorrect OTP'});
+      };
+    });
+    
+  });
+
+  app.post('/api/LogIn/ForgatePw/ResetPassword',(req,res)=>{
+    const {email,resetPassword} = req.body;
+    const query = 'UPDATE users SET password = ?, passwordcheck = ? WHERE gmail = ?';
+
+    connectionUserdb.query(query,[resetPassword,resetPassword,email],(err,results)=>{
+      if(err){
+        console.error('Error inserting in database',err);
+        return res.status(500).json({error : 'Error inserting in database'});
+      }
+      
+      return res.status(200).json({message : 'Update password successfully'});
+
+    })
+  })
 
 const port = process.env.PORT || 3000;
 
