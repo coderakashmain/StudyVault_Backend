@@ -1,15 +1,16 @@
+require('dotenv').config();
 const mysql = require("mysql2") 
 
 const connectionUserdb = mysql.createConnection({
-    host : 'localhost',
-    user : 'root',
-    password : '814495@mySQL',
+    host : process.env.DB_HOST,
+    user : process.env.DB_USER,
+    password : process.env.DB_PASSWORD,
     database : 'userdb'
 })
 const connectionPaperdb = mysql.createConnection({
-    host : 'localhost',
-    user : 'root',
-    password : '814495@mySQL',
+    host : process.env.DB_HOST,
+    user : process.env.DB_USER,
+    password : process.env.DB_PASSWORD,
     database : 'PapersDB'
 })
 
