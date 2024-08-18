@@ -308,7 +308,7 @@ app.get('/api/profile',authenticateToken, (req, res) => {
 
 
 
-app.get('/api/navbar',authenticateToken, (req, res) => {
+app.get('/api',authenticateToken, (req, res) => {
   // const token = req.cookies.token;
   // console.log("Token received:", token);  // Debugging
 
