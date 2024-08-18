@@ -617,7 +617,7 @@ app.post('/api/Profile', upload.single('file'), (req, res) => {
 const port = process.env.PORT || 3002;
 
 
-app.listen(port,()=>{
+app.listen(port,process.env.IP,()=>{
     console.log(`The website is running on port ${port}`);
   
 });
