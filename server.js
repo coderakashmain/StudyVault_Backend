@@ -622,6 +622,7 @@ app.post("/api/LogIn/ForgatePw/ResetPassword", (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
+const ip = process.env.IP || '127.0.0.1';
 
 app.listen(port, process.env.IP, () => {
   console.log(`The website is running on port ${port}`);
