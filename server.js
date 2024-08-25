@@ -98,7 +98,7 @@ app.post("/api/LogIn/Signup/otpVarify", async (req, res) => {
     </html>
 `,
     };
-    // console.log(mailOptions);
+    console.log(mailOptions);
 
     await new Promise((resolve, reject) => {
       transporter.sendMail(mailOptions, (err, info) => {
@@ -106,7 +106,7 @@ app.post("/api/LogIn/Signup/otpVarify", async (req, res) => {
           console.error("Email sending error:", err);
           return reject("Email sending error");
         }
-        // console.log("Email sent:", info.response);
+        console.log("Email sent:", info.response);
         resolve();
       });
     });
@@ -134,7 +134,7 @@ app.post("/api/LogIn/Signup/otpVarify/confirm", async (req, res) => {
 
         if (results.length > 0) {
           const otpExpires = results[0].expireotp;
-          // console.log(results.length);
+          console.log(results.length);
           if (new Date(otpExpires) < new Date()) {
             return res.status(410).json({ error: "OTP expired" });
           }
@@ -348,7 +348,7 @@ app.get("/api", authenticateToken, (req, res) => {
 
     if (results.length > 0) {
       const user = results[0];
-      // console.log(user);
+      console.log(user);
       return res.status(200).json({ success: true });
     } else {
       return res.status(404).json({ message: "User not found" });
@@ -516,7 +516,7 @@ app.post("/api/LogIn/ForgatePw", (req, res) => {
     const lastname = results[0].lastname;
 
     param.push(email);
-    // console.log(param);
+    console.log(param);
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpires = new Date(Date.now() + 10 * 60000);
 
@@ -552,14 +552,14 @@ app.post("/api/LogIn/ForgatePw", (req, res) => {
           </html>
   `,
         };
-        // console.log(mailOptions);
+        console.log(mailOptions);
 
         transporter.sendMail(mailOptions, (err, info) => {
           if (err) {
             console.error("Email sending error:", err);
             return res.status(500).json({ error: "Email sending error" });
           }
-          // console.log("Email sent:", info.response);
+          console.log("Email sent:", info.response);
           return res.status(200).json("OTP sent");
         });
       }
@@ -577,7 +577,7 @@ app.post("/api/LogIn/verifyOtp", (req, res) => {
     }
     if (results.length > 0) {
       const otpExpires = results[0].otpExpires;
-      // console.log(results.length);
+      console.log(results.length);
       if (new Date(otpExpires) < new Date()) {
         return res.status(410).json({ error: "OTP expired" });
       }
@@ -621,9 +621,9 @@ app.post("/api/LogIn/ForgatePw/ResetPassword", (req, res) => {
   );
 });
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 3000;
 const ip = process.env.IP || '127.0.0.1';
 
-app.listen(port, process.env.IP, () => {
+app.listen(port, ip, () => {
   console.log(`The website is running on port ${port}`);
 });
