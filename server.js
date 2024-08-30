@@ -487,7 +487,9 @@ app.get("/api/Profile", (req, res) => {
 
 // Forgate page
 
-app.post("/api/LogIn/ForgatePw", (req, res) => {
+
+
+app.post('/api/LogIn/ForgatePw', (req, res) => {
   const { email } = req.body;
 
   const checkquery = "SELECT * FROM users WHERE gmail = ?";
