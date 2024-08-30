@@ -210,7 +210,7 @@ app.post("/api/LogIn/Signup", (req, res) => {
   });
 });
 
-app.post("/LogIn", (req, res) => {
+app.post("/api/LogIn", (req, res) => {
   const { gmail, password } = req.body;
 
   const query = "SELECT * FROM users WHERE gmail = ? AND password =?";
