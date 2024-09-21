@@ -17,7 +17,10 @@ const { google } = require('googleapis');
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEYP;
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://www.studyvault.online', // Your production domain
+  credentials: true
+}));
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(cookieParser());
