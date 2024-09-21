@@ -464,7 +464,7 @@ app.get('/api/signup-check',authenticateToken,  (req,res)=>{
   });
 
 
-app.get("/api/profile", authenticateToken, (req, res) => {
+app.get("/api/Profile", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
 
   connectionUserdb.query(query, [req.user.id], (err, results) => {
@@ -482,7 +482,7 @@ app.get("/api/profile", authenticateToken, (req, res) => {
   });
 });
 
-app.get("/api/profile", authenticateToken, (req, res) => {
+app.get("/api/Profile", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
 
   connectionUserdb.query(query, [req.user.id], (err, results) => {
