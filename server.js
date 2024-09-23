@@ -409,7 +409,7 @@ app.post("/api/LogIn", (req, res) => {
     }
     if (results.length > 0) {
       const user = results[0];
-      const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: "1h" });
+      const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: "24h" });
 
       res.cookie("token", token, {
         httpOnly: true,
@@ -525,79 +525,82 @@ app.post("/api/logOut", (req, res) => {
 // Paper PDF BACKEND
 
 app.get("/api/Filter", (req, res) => {
+
+ 
   let query = "SELECT * FROM papers WHERE 1=1";
   const params = [];
 
-  if (req.query.departmentName) {
-    query += " AND departmentName = ?";
-    params.push(req.query.departmentName);
-  }
-
-  if (
-    req.query.educationLevelug === "ug" ||
-    req.query.educationLevelpg === "pg"
-  ) {
-    let educationLevels = [];
-    if (req.query.educationLevelug === "ug") {
-      educationLevels.push("ug");
-    }
-    if (req.query.educationLevelpg === "pg") {
-      educationLevels.push("pg");
-    }
-    if (educationLevels.length > 0) {
-      query += " AND educationLevel IN (?)";
-      params.push(educationLevels);
-    }
-  }
-
-  if (req.query.fromDate) {
-    query += " AND years >= ?";
-    params.push(req.query.fromDate);
-  }
-
-  if (req.query.toDate) {
-    query += " AND years < ?";
-    params.push(req.query.toDate);
-  }
-
-  if (req.query.departmentYear) {
-    query += " AND departmentYear = ?";
-    params.push(req.query.departmentYear);
-  }
-
-  if (req.query.sem === "true" || req.query.midSem === "true") {
-    let conditions = [];
-    if (req.query.sem === "true") {
-      conditions.push("sem = true");
-
-      // params.push(req.query.sem);
-    }
-
-    if (req.query.midSem === "true") {
-      conditions.push("midSem = true");
-
-      // params.push(req.query.midSem);
-    }
-
-    if (conditions.length > 0) {
-      query += " AND (" + conditions.join(" OR ") + ")";
-      params.push(conditions);
-    }
-  }
-
-  if (params.length === 0 && !req.query.sem && !req.query.midSem) {
-    return res.status(400).json({ error: "No filter parameters provided" });
-  }
-  // console.log("Executing query:", query);
-  // console.log("With parameters:", params);
-
-  connectionPaperdb.query(query, params, (err, results) => {
-    if (err) {
-      console.error("Error fetching papers:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
-    res.json(results);
-  });
+  
+      if (req.query.departmentName) {
+        query += " AND departmentName = ?";
+        params.push(req.query.departmentName);
+      }
+    
+      if (
+        req.query.educationLevelug === "ug" ||
+        req.query.educationLevelpg === "pg"
+      ) {
+        let educationLevels = [];
+        if (req.query.educationLevelug === "ug") {
+          educationLevels.push("ug");
+        }
+        if (req.query.educationLevelpg === "pg") {
+          educationLevels.push("pg");
+        }
+        if (educationLevels.length > 0) {
+          query += " AND educationLevel IN (?)";
+          params.push(educationLevels);
+        }
+      }
+    
+      if (req.query.fromDate) {
+        query += " AND years >= ?";
+        params.push(req.query.fromDate);
+      }
+    
+      if (req.query.toDate) {
+        query += " AND years < ?";
+        params.push(req.query.toDate);
+      }
+    
+      if (req.query.departmentYear) {
+        query += " AND departmentYear = ?";
+        params.push(req.query.departmentYear);
+      }
+    
+      if (req.query.sem === "true" || req.query.midSem === "true") {
+        let conditions = [];
+        if (req.query.sem === "true") {
+          conditions.push("sem = true");
+    
+          // params.push(req.query.sem);
+        }
+    
+        if (req.query.midSem === "true") {
+          conditions.push("midSem = true");
+    
+          // params.push(req.query.midSem);
+        }
+    
+        if (conditions.length > 0) {
+          query += " AND (" + conditions.join(" OR ") + ")";
+          params.push(conditions);
+        }
+      }
+    
+      if (params.length === 0 && !req.query.sem && !req.query.midSem) {
+        return res.status(400).json({ error: "No filter parameters provided" });
+      }
+      // console.log("Executing query:", query);
+      // console.log("With parameters:", params);
+    
+      connectionPaperdb.query(query, params, (err, results) => {
+        if (err) {
+          console.error("Error fetching papers:", err);
+          return res.status(500).json({ error: "Internal Server Error" });
+        }
+        res.status(200).json(results);
+      });
 });
 
 
