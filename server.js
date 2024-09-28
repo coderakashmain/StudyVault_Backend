@@ -272,7 +272,7 @@ app.post("/api/LogIn/Signup/otpVarify", async (req, res) => {
       <body style="font-family: Arial, sans-serif; color: #333;">
         <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
           <h1 style="text-align: center;">Welcome to StudyVault</h1>
-          <p style="text-align: center;font-size : 1.1rem"> Hi</p>
+          <p style="text-align: center;font-size : 1.1rem"> Hi...</p>
           <p>You requested to verify your email. Please use the following One-Time Password (OTP) to verify your email:</p>
           <h2 style="text-align: center; margin: auto ; font-size : 2.4rem;">${otp}</h2>
           <p>The OTP is valid for the next 10 minutes. If you did not request a verify you email, please ignore this email.</p>
@@ -523,6 +523,45 @@ app.post("/api/logOut", (req, res) => {
 });
 
 // Paper PDF BACKEND
+
+app.get('/api/login-check-filter',authenticateToken,  (req,res)=>{
+ 
+  const query = "SELECT * FROM users WHERE id = ?";
+
+  connectionUserdb.query(query, [req.user.id], (err, results) => {
+    if (err) {
+      console.error("Error retrieving user data", err);
+      return   res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    if (results.length > 0) {
+       res.status(200).json({message : 'Succefull'});
+
+      
+    } else {
+     return  res.status(404).json({error : 'User not found'})
+    }
+  })
+});
+app.get('/api/login-check-context',authenticateToken,  (req,res)=>{
+ 
+  const query = "SELECT * FROM users WHERE id = ?";
+
+  connectionUserdb.query(query, [req.user.id], (err, results) => {
+    if (err) {
+      console.error("Error retrieving user data", err);
+      return   res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    if (results.length > 0) {
+       res.status(200).json({message : 'Succefull'});
+
+      
+    } else {
+     return  res.status(404).json({error : 'User not found'})
+    }
+  })
+});
 
 app.get("/api/Filter", (req, res) => {
 
