@@ -43,6 +43,28 @@ const drive = google.drive({
   auth: oauth2Client,
 });
 
+async function findFolder(folderName) {
+  try {
+    const response = await drive.files.list({
+      q: `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive'
+    });
+
+    const folders = response.data.files;
+    if (folders.length > 0) {
+      // Folder exists, return its ID
+      return folders[0].id;
+    } else {
+      // Folder doesn't exist, return null
+      return null;
+    }
+  } catch (error) {
+    console.error('Error finding folder on Google Drive:', error);
+    throw error;
+  }
+}
+
 async function createDriveFolder(folderName) {
   try {
     const fileMetadata = {
@@ -129,7 +151,10 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
       return res.status(400).send("No file uploaded");
     }
 
-    const folderId = await createDriveFolder('User Uploads Files');
+    const folderId = await findFolder('User Uploads Files');
+    if (!folderId) {
+      folderId = await createDriveFolder('User Uploads Files'); // Create folder if it doesn't exist
+    }
 
 
     // Upload the file to Google Drive
