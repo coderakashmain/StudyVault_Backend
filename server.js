@@ -11,8 +11,9 @@ const nodemailer = require("nodemailer");
 const bodyParser = require("body-parser");
 const { error } = require("console");
 const cookieParser = require("cookie-parser");
-const fs = require('fs');
-const { google } = require('googleapis');
+const fs = require("fs");
+const { google } = require("googleapis");
+const bcrypt = require("bcrypt");
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEYP;
@@ -39,7 +40,7 @@ const oauth2Client = new google.auth.OAuth2(
 oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
 const drive = google.drive({
-  version: 'v3',
+  version: "v3",
   auth: oauth2Client,
 });
 
@@ -47,8 +48,8 @@ async function findFolder(folderName) {
   try {
     const response = await drive.files.list({
       q: `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`,
-      fields: 'files(id, name)',
-      spaces: 'drive'
+      fields: "files(id, name)",
+      spaces: "drive",
     });
 
     const folders = response.data.files;
@@ -60,7 +61,7 @@ async function findFolder(folderName) {
       return null;
     }
   } catch (error) {
-    console.error('Error finding folder on Google Drive:', error);
+    console.error("Error finding folder on Google Drive:", error);
     throw error;
   }
 }
@@ -69,57 +70,57 @@ async function createDriveFolder(folderName) {
   try {
     const fileMetadata = {
       name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
+      mimeType: "application/vnd.google-apps.folder",
     };
 
     const response = await drive.files.create({
       resource: fileMetadata,
-      fields: 'id',
+      fields: "id",
     });
 
     // console.log('Folder created on Google Drive with ID:', response.data.id);
     return response.data.id; // Return the folder ID
   } catch (error) {
-    console.error('Error creating folder on Google Drive:', error);
+    console.error("Error creating folder on Google Drive:", error);
     throw error;
   }
 }
 
 // Function to Upload File to Google Drive
-async function uploadFileToDrive(filename,folderId) {
+async function uploadFileToDrive(filename, folderId) {
   try {
-    const filePath = path.join(__dirname, 'uploads', filename); // File saved temporarily in uploads folder
+    const filePath = path.join(__dirname, "uploads", filename); // File saved temporarily in uploads folder
     const fileMetadata = {
       name: filename, // Use the uploaded file's name
       parents: [folderId],
     };
 
     const media = {
-      mimeType: 'application/pdf', // Assuming the file is a PDF, adjust if needed
+      mimeType: "application/pdf", // Assuming the file is a PDF, adjust if needed
       body: fs.createReadStream(filePath),
     };
 
     const response = await drive.files.create({
       resource: fileMetadata,
       media: media,
-      fields: 'id',
+      fields: "id",
     });
 
     const fileId = response.data.id;
 
     drive.permissions.create({
-      fileId : fileId,
-      resource : {
-        role:'reader',
-        type : 'anyone',
-      }
+      fileId: fileId,
+      resource: {
+        role: "reader",
+        type: "anyone",
+      },
     });
 
     // console.log('File uploaded successfully to Google Drive. File ID:', fileId);
-    
+
     return response.data.id; // Return Google Drive file ID
   } catch (error) {
-    console.error('Error uploading file to Google Drive:', error);
+    console.error("Error uploading file to Google Drive:", error);
     throw error;
   }
 }
@@ -142,80 +143,77 @@ const upload = multer({ storage });
 
 // POST Route to Handle File Upload and Google Drive Integration
 app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
-  const {renameFileback,userid} = req.body;
-  console.log(userid);
-  console.log(renameFileback,'helmy');
-  try { 
+  const { renameFileback, userid } = req.body;
+  // console.log(userid);
+  // console.log(renameFileback, "helmy");
+  try {
     const file = req.file; // Get file info from multer
     if (!file) {
       return res.status(400).send("No file uploaded");
     }
 
-    const folderId = await findFolder('User Uploads Files');
+    const folderId = await findFolder("User Uploads Files");
     if (!folderId) {
-      folderId = await createDriveFolder('User Uploads Files'); // Create folder if it doesn't exist
+      folderId = await createDriveFolder("User Uploads Files"); // Create folder if it doesn't exist
     }
-
 
     // Upload the file to Google Drive
-    const fileId = await uploadFileToDrive(file.filename,folderId);
-    const filepath = `https://drive.google.com/file/d/${fileId}/view`
+    const fileId = await uploadFileToDrive(file.filename, folderId);
+    const filepath = `https://drive.google.com/file/d/${fileId}/view`;
 
-    if(fileId){
-      const query =  'INSERT INTO user_uploads (user_id,papername,paperlink) VALUES (?,?,?)';
+    if (fileId) {
+      const query =
+        "INSERT INTO user_uploads (user_id,papername,paperlink) VALUES (?,?,?)";
 
-      connectionUserdb.query(query,[userid,renameFileback,filepath], (err,results)=>{
-
-        if(err){
-          console.error('Error inserting in database',err);
+      connectionUserdb.query(
+        query,
+        [userid, renameFileback, filepath],
+        (err, results) => {
+          if (err) {
+            console.error("Error inserting in database", err);
+          } else {
+            // console.log("Add to database");
+          }
         }
-        else{
-          console.log('Add to database');
-        }
-      })
+      );
     }
-    
-    
 
     // Delete the file from the local uploads directory after upload
-    const tempFilePath = path.join(__dirname, 'uploads', file.filename);
-     fs.unlink(tempFilePath, (err) => {
-      if (err) console.error('Error deleting temp file:', err);
+    const tempFilePath = path.join(__dirname, "uploads", file.filename);
+    fs.unlink(tempFilePath, (err) => {
+      if (err) console.error("Error deleting temp file:", err);
       // else console.log('Temp file deleted:', tempFilePath);
     });
-    const tmpDir = path.join(__dirname, 'uploads/.tmp.driveupload');
-
+    const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
 
     fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
-  if (err) {
-    console.error('folder does not exist:', tmpDir);
-  } else {
-    fs.unlink(tmpDir, (err) => {
-      return
+      if (err) {
+        // console.error("folder does not exist:", tmpDir);
+      } else {
+        fs.unlink(tmpDir, (err) => {
+          return;
+        });
+      }
     });
-  }
-});
 
     // Send response to the client
-    
-     return  res.status(200).send({
-      message: 'File uploaded successfully to Google Drive',
-      fileId:fileId, // Returning Google Drive File ID
-      
+
+    return res.status(200).send({
+      message: "File uploaded successfully to Google Drive",
+      fileId: fileId, // Returning Google Drive File ID
     });
-  
   } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).send('Failed to upload file');
+    console.error("Error uploading file:", error);
+    res.status(500).send("Failed to upload file");
   }
 });
 
-app.get('/api/Profile/fetchpdf',async (req,res)=>{
-  try{
+app.get("/api/Profile/fetchpdf", async (req, res) => {
+  try {
     let query = "SELECT * FROM user_uploads WHERE user_id = ?";
     const params = [];
-    const {userid} = req.body;
-  
+    const { userid } = req.body;
+
     if (req.query.papername) {
       query += " AND papername = ?";
       params.push(req.query.papername);
@@ -225,19 +223,17 @@ app.get('/api/Profile/fetchpdf',async (req,res)=>{
       params.push(req.query.paperlink);
     }
 
-    connectionUserdb.query(query,[userid],params,(err,results)=>{
-      if(err){
-        console.error('Error in finding',err);
-        res.status(400).json({err : 'Error in finding'})
+    connectionUserdb.query(query, [userid], params, (err, results) => {
+      if (err) {
+        console.error("Error in finding", err);
+        res.status(400).json({ err: "Error in finding" });
       }
       res.status(200).json(results);
-    })
-
-  }catch(error){
-      res.status(500).json({err :  "Internal error"});
+    });
+  } catch (error) {
+    res.status(500).json({ err: "Internal error" });
   }
 });
-
 
 app.post("/api/LogIn/Signup/otpVarify", async (req, res) => {
   const { email } = req.body;
@@ -420,8 +416,6 @@ app.post("/api/LogIn/Signup", (req, res) => {
   });
 });
 
-
-
 app.post("/api/LogIn", (req, res) => {
   const { gmail, password } = req.body;
 
@@ -464,29 +458,7 @@ function authenticateToken(req, res, next) {
   });
 }
 
-app.get('/api/signup-check',authenticateToken,  (req,res)=>{
- 
-    const query = "SELECT * FROM users WHERE id = ?";
-
-    connectionUserdb.query(query, [req.user.id], (err, results) => {
-      if (err) {
-        console.error("Error retrieving user data", err);
-        return   res.status(500).json({ error: "Internal Server Error" });
-      }
-  
-      if (results.length > 0) {
-      
-         res.status(200).json({message : 'user is available'});
-        
-      } else {
-        res.status(404).json({ error: "User not found" });
-       return  res.status({error : 'User not found'})
-      }
-    })
-  });
-
-
-app.get("/api/Profile", authenticateToken, (req, res) => {
+app.get("/api/signup-check", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
 
   connectionUserdb.query(query, [req.user.id], (err, results) => {
@@ -496,10 +468,10 @@ app.get("/api/Profile", authenticateToken, (req, res) => {
     }
 
     if (results.length > 0) {
-      const user = results[0];
-      res.status(200).json({ user });
+      res.status(200).json({ message: "user is available" });
     } else {
       res.status(404).json({ error: "User not found" });
+      return res.status({ error: "User not found" });
     }
   });
 });
@@ -522,6 +494,23 @@ app.get("/api/Profile", authenticateToken, (req, res) => {
   });
 });
 
+app.get("/api/Profile", authenticateToken, (req, res) => {
+  const query = "SELECT * FROM users WHERE id = ?";
+
+  connectionUserdb.query(query, [req.user.id], (err, results) => {
+    if (err) {
+      console.error("Error retrieving user data", err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+
+    if (results.length > 0) {
+      const user = results[0];
+      res.status(200).json({ user });
+    } else {
+      res.status(404).json({ error: "User not found" });
+    }
+  });
+});
 
 app.get("/api", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
@@ -549,133 +538,118 @@ app.post("/api/logOut", (req, res) => {
 
 // Paper PDF BACKEND
 
-app.get('/api/login-check-filter',authenticateToken,  (req,res)=>{
- 
+app.get("/api/login-check-filter", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
 
   connectionUserdb.query(query, [req.user.id], (err, results) => {
     if (err) {
       console.error("Error retrieving user data", err);
-      return   res.status(500).json({ error: "Internal Server Error" });
+      return res.status(500).json({ error: "Internal Server Error" });
     }
 
     if (results.length > 0) {
-       res.status(200).json({message : 'Succefull'});
-
-      
+      res.status(200).json({ message: "Succefull" });
     } else {
-     return  res.status(404).json({error : 'User not found'})
+      return res.status(404).json({ error: "User not found" });
     }
-  })
+  });
 });
-app.get('/api/login-check-context',authenticateToken,  (req,res)=>{
- 
+app.get("/api/login-check-context", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
 
   connectionUserdb.query(query, [req.user.id], (err, results) => {
     if (err) {
       console.error("Error retrieving user data", err);
-      return   res.status(500).json({ error: "Internal Server Error" });
+      return res.status(500).json({ error: "Internal Server Error" });
     }
 
     if (results.length > 0) {
-       res.status(200).json({message : 'Succefull'});
-
-      
+      res.status(200).json({ message: "Succefull" });
     } else {
-     return  res.status(404).json({error : 'User not found'})
+      return res.status(404).json({ error: "User not found" });
     }
-  })
+  });
 });
 
 app.get("/api/Filter", (req, res) => {
-
- 
   let query = "SELECT * FROM papers WHERE 1=1";
   const params = [];
 
-  
-      if (req.query.departmentName) {
-        query += " AND departmentName = ?";
-        params.push(req.query.departmentName);
-      }
-    
-      if (
-        req.query.educationLevelug === "ug" ||
-        req.query.educationLevelpg === "pg"
-      ) {
-        let educationLevels = [];
-        if (req.query.educationLevelug === "ug") {
-          educationLevels.push("ug");
-        }
-        if (req.query.educationLevelpg === "pg") {
-          educationLevels.push("pg");
-        }
-        if (educationLevels.length > 0) {
-          query += " AND educationLevel IN (?)";
-          params.push(educationLevels);
-        }
-      }
-    
-      if (req.query.fromDate) {
-        query += " AND years >= ?";
-        params.push(req.query.fromDate);
-      }
-    
-      if (req.query.toDate) {
-        query += " AND years < ?";
-        params.push(req.query.toDate);
-      }
-    
-      if (req.query.departmentYear) {
-        query += " AND departmentYear = ?";
-        params.push(req.query.departmentYear);
-      }
-    
-      if (req.query.sem === "true" || req.query.midSem === "true") {
-        let conditions = [];
-        if (req.query.sem === "true") {
-          conditions.push("sem = true");
-    
-          // params.push(req.query.sem);
-        }
-    
-        if (req.query.midSem === "true") {
-          conditions.push("midSem = true");
-    
-          // params.push(req.query.midSem);
-        }
-    
-        if (conditions.length > 0) {
-          query += " AND (" + conditions.join(" OR ") + ")";
-          params.push(conditions);
-        }
-      }
-    
-      if (params.length === 0 && !req.query.sem && !req.query.midSem) {
-        return res.status(400).json({ error: "No filter parameters provided" });
-      }
-      // console.log("Executing query:", query);
-      // console.log("With parameters:", params);
-    
-      connectionPaperdb.query(query, params, (err, results) => {
-        if (err) {
-          console.error("Error fetching papers:", err);
-          return res.status(500).json({ error: "Internal Server Error" });
-        }
-        res.status(200).json(results);
-      });
+  if (req.query.departmentName) {
+    query += " AND departmentName = ?";
+    params.push(req.query.departmentName);
+  }
+
+  if (
+    req.query.educationLevelug === "ug" ||
+    req.query.educationLevelpg === "pg"
+  ) {
+    let educationLevels = [];
+    if (req.query.educationLevelug === "ug") {
+      educationLevels.push("ug");
+    }
+    if (req.query.educationLevelpg === "pg") {
+      educationLevels.push("pg");
+    }
+    if (educationLevels.length > 0) {
+      query += " AND educationLevel IN (?)";
+      params.push(educationLevels);
+    }
+  }
+
+  if (req.query.fromDate) {
+    query += " AND years >= ?";
+    params.push(req.query.fromDate);
+  }
+
+  if (req.query.toDate) {
+    query += " AND years < ?";
+    params.push(req.query.toDate);
+  }
+
+  if (req.query.departmentYear) {
+    query += " AND departmentYear = ?";
+    params.push(req.query.departmentYear);
+  }
+
+  if (req.query.sem === "true" || req.query.midSem === "true") {
+    let conditions = [];
+    if (req.query.sem === "true") {
+      conditions.push("sem = true");
+
+      // params.push(req.query.sem);
+    }
+
+    if (req.query.midSem === "true") {
+      conditions.push("midSem = true");
+
+      // params.push(req.query.midSem);
+    }
+
+    if (conditions.length > 0) {
+      query += " AND (" + conditions.join(" OR ") + ")";
+      params.push(conditions);
+    }
+  }
+
+  if (params.length === 0 && !req.query.sem && !req.query.midSem) {
+    return res.status(400).json({ error: "No filter parameters provided" });
+  }
+  // console.log("Executing query:", query);
+  // console.log("With parameters:", params);
+
+  connectionPaperdb.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching papers:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+    res.status(200).json(results);
+  });
 });
-
-
-
-
 
 // Forgate page
 
-
-
-app.post('/api/LogIn/ForgatePw', (req, res) => {
+app.post("/api/LogIn/ForgatePw", (req, res) => {
   const { email } = req.body;
 
   const checkquery = "SELECT * FROM users WHERE gmail = ?";
@@ -693,12 +667,10 @@ app.post('/api/LogIn/ForgatePw', (req, res) => {
     const now = new Date();
     const lastOtpTime = new Date(user.lastOtpTime);
     if (user.lastOtpTime && now - lastOtpTime < 30000) {
-      return res
-        .status(429)
-        .json({
-          error:
-            "OTP already sent. Please wait 30 seconds before requesting another OTP",
-        });
+      return res.status(429).json({
+        error:
+          "OTP already sent. Please wait 30 seconds before requesting another OTP",
+      });
     }
     const firstname = results[0].firstname;
     const lastname = results[0].lastname;
@@ -765,7 +737,7 @@ app.post("/api/LogIn/verifyOtp", (req, res) => {
     }
     if (results.length > 0) {
       const otpExpires = results[0].otpExpires;
-      console.log(results.length);
+      // console.log(results.length);
       if (new Date(otpExpires) < new Date()) {
         return res.status(410).json({ error: "OTP expired" });
       }
@@ -809,65 +781,279 @@ app.post("/api/LogIn/ForgatePw/ResetPassword", (req, res) => {
   );
 });
 
-app.get('/api/feedback-check',authenticateToken,  (req,res)=>{
- 
+app.get("/api/feedback-check", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
 
   connectionUserdb.query(query, [req.user.id], (err, results) => {
     if (err) {
       console.error("Error retrieving user data", err);
-      return   res.status(500).json({ error: "Internal Server Error" });
+      return res.status(500).json({ error: "Internal Server Error" });
     }
 
     if (results.length > 0) {
       const user = results[0];
-       res.status(200).json(user);
-
-      
+      res.status(200).json(user);
     } else {
-     return  res.status(404).json({error : 'User not found'})
+      return res.status(404).json({ error: "User not found" });
     }
-  })
+  });
 });
 
-app.post('/api/feedback-submission',async (req,res)=>{
-  try
- { 
-  await new Promise((resolve,reject)=>{
-    const {star,feedbackmessage,gmail} = req.body;
+app.post("/api/feedback-submission", async (req, res) => {
+  try {
+    await new Promise((resolve, reject) => {
+      const { star, feedbackmessage, gmail } = req.body;
 
-    const checkquery = "SELECT * FROM users WHERE gmail = ?";
-    connectionUserdb.query(checkquery,[gmail],(err,results)=>{
-      if(results.length > 0){
-        resolve();
-      }
-      else{
-        console.error('user not found',err);
-        return res.status(404).json({err : 'user not log in'});
-      }
+      const checkquery = "SELECT * FROM users WHERE gmail = ?";
+      connectionUserdb.query(checkquery, [gmail], (err, results) => {
+        if (results.length > 0) {
+          resolve();
+        } else {
+          console.error("user not found", err);
+          return res.status(404).json({ err: "user not log in" });
+        }
+      });
+
+      const updatequery =
+        "UPDATE users SET ratestar = ?, feedbackmessage = ? WHERE gmail = ? ";
+      connectionUserdb.query(
+        updatequery,
+        [star, feedbackmessage, gmail],
+        (err, results) => {
+          const user = results[0];
+          if (err) {
+            console.error("database error", err);
+            return reject({ err: "database error" });
+          }
+          res.status(200).json(user);
+        }
+      );
+    });
+  } catch (error) {
+    res.status(500).json({ err: "Internal error" });
+  }
+});
+
+//Admin
+
+//File Upload
+
+async function findFolder(folderName, parentFolderId = "root") {
+  try {
+    const response = await drive.files.list({
+      q: `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentFolderId}' in parents`,
+      fields: "files(id, name)",
     });
 
-    const updatequery = "UPDATE users SET ratestar = ?, feedbackmessage = ? WHERE gmail = ? ";
-    connectionUserdb.query(updatequery,[star,feedbackmessage,gmail],(err,results)=>{
-      const user = results[0];
-      if(err){
-        console.error('database error',err);
-        return reject({err : 'database error'});
-      }
-      res.status(200).json(user);
-      
-    })
+    const folder = response.data.files[0];
+    if (!folder) {
+      // console.log(
+      //   `Folder "${folderName}" not found in parent "${parentFolderId}".`
+      // );
+      return null;
+    }
 
-  })}
-  catch(error){
-    res.status(500).json({err : 'Internal error'});
+    // console.log(`Folder "${folderName}" found with ID: ${folder.id}`);
+    return folder.id; // Return the folder ID
+  } catch (error) {
+    console.error("Error finding folder on Google Drive:", error);
+    throw error;
+  }
+}
+
+async function findNestedFolder(folderPath) {
+  const folderNames = folderPath.split("/"); // Split the folder path into parts
+  let currentParentId = "root"; // Start from the root directory
+
+  for (const folderName of folderNames) {
+    const folderId = await findFolder(folderName, currentParentId);
+    if (!folderId) {
+      console.log(`Folder "${folderName}" does not exist.`);
+
+      const uploadFolderPath = path.join(__dirname, "uploads");
+
+      fs.readdir(uploadFolderPath, (readErr, files) => {
+        if (readErr) {
+          // console.error("Error reading uploads folder:", readErr);
+          return;
+        }
+
+        files.forEach((file) => {
+          const filePath = path.join(uploadFolderPath, file);
+          fs.unlink(filePath, (unlinkErr) => {
+            if (unlinkErr) {
+              // console.error("Error deleting file:", filePath, unlinkErr);
+            } else {
+              // console.log("Deleted file:", filePath);
+            }
+          });
+        });
+      });
+
+      return null; // Stop if any folder in the path is not found
+    }
+    currentParentId = folderId; // Move into the found folder
   }
 
+  return currentParentId; // Return the ID of the final folder in the path
+}
 
+app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
+  // console.log("Request received");
+  const { renameFileback, filtetuploaddata } = req.body;
+  const parsedData = JSON.parse(filtetuploaddata);
+
+  const {
+    departmentName,
+    educationLavel,
+    session,
+    dptyear,
+    semormid,
+    studentyear,
+  } = parsedData;
+
+  // console.log(departmentName);
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).send("No file uploaded");
+    }
+    let sem = 0;
+    let midsem = 0;
+
+    if (semormid === "sem") {
+      sem = 1;
+    } else if (semormid === "midSem") {
+      midsem = 1;
+    }
+    // console.log("sem:", sem, "midsem:", midsem);
+
+    const folderPath = `MPC Papers Pdf/${educationLavel}/${semormid}/${studentyear}/${dptyear}/${departmentName}`;
+    // const folderPath =
+    //   "MPC Papers Pdf/Ug/Semester/3rd Year/Science/Data Science";
+    const folderId = await findNestedFolder(folderPath);
+
+    if (!folderId) {
+      return res
+        .status(400)
+        .json({ message: `Folder "${folderPath}" does not exist.` });
+    }
+
+    const fileId = await uploadFileToDrive(file.filename, folderId);
+    if (!fileId) {
+      return res.status(500).send("Failed to upload file to Google Drive");
+    }
+
+    const filepath = `https://drive.google.com/file/d/${fileId}/view`;
+
+    const query =
+      "INSERT INTO papers (departmentName, educationLevel, years, departmentYear,sem,midSem, title, url,semester) VALUES (?, ?,? ,?, ?, ?, ?, ?, ?)";
+
+    connectionPaperdb.query(
+      query,
+      [
+        departmentName,
+        educationLavel,
+        session,
+        studentyear,
+        sem,
+        midsem,
+        renameFileback,
+        filepath,
+        dptyear,
+      ],
+      (err, results) => {
+        if (err) {
+          console.error("Error inserting into database:", err);
+
+          res
+            .status(500)
+            .send("Failed to save file information to the database");
+        }
+
+        // console.log("Added to database");
+        res.status(200).send({
+          message: "File uploaded successfully to Google Drive",
+          fileId: fileId,
+        });
+      }
+    );
+
+    const tempFilePath = path.join(__dirname, "uploads", file.filename);
+    fs.unlink(tempFilePath, (err) => {
+      // if (err) console.error("Error deleting temp file:", err);
+    });
+
+    const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
+    fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
+      // if (err) console.error("Error deleting temp folder:", err);
+    });
+  } catch (error) {
+    console.error("Error processing request:", error);
+    res.status(500).send("An error occurred while processing the request");
+  }
 });
 
+app.get("/api/admin/fetchData", async (req, res) => {
+  let query = "SELECT * FROM papers ";
+
+  connectionPaperdb.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching papers:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+    res.status(200).json(results);
+  });
+});
+
+//Admin LogIN
+
+app.post("/api/Admin/AdminLogIn", (req, res) => {
+  const { userid, password } = req.body;
+
+  const query = "SELECT * FROM admin_login WHERE userid = ? AND password = ? ";
+
+  connectionPaperdb.query(query, [userid, password], (err, results) => {
+    if (err) {
+      console.error({ err });
+      return res.status(500).json({ error: "Internal server error" });
+    }
+    if (results.length === 0) {
+      return res.status(400).json({ error: "Invalid Credentials" });
+    }
+
+    const token = jwt.sign({ userId: results[0].userid }, SECRET_KEY, {
+      expiresIn: "1h", // Token expiration time
+    });
+
+    return res.status(200).json({ message: "Seccessfully LogIn", token });
+  });
+});
+
+app.get("/api/adminPage", (req, res) => {
+  // Get token from the Authorization header
+  const token =
+    req.headers["authorization"] && req.headers["authorization"].split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // Verify the token
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    // Token is valid, proceed with the request
+    res.status(200).json({ message: "Admin page content" });
+  });
+});
+
+/////////////
+
 const port = process.env.PORT || 3000;
-const ip = process.env.IP || '127.0.0.1';
+const ip = process.env.IP || "127.0.0.1";
 
 app.listen(port, ip, () => {
   console.log(`The website is running on port ${port}`);
