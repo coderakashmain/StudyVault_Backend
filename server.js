@@ -13,7 +13,6 @@ const { error } = require("console");
 const cookieParser = require("cookie-parser");
 const fs = require("fs");
 const { google } = require("googleapis");
-const bcrypt = require("bcrypt");
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEYP;
