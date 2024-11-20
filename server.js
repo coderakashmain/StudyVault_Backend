@@ -911,7 +911,7 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
     studentyear,
   } = parsedData;
 
-  // console.log(departmentName);
+
   try {
     const file = req.file;
     if (!file) {
@@ -934,15 +934,28 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
 
     if (!folderId) {
       return res
-        .status(400)
+        .status(401)
         .json({ message: `Folder "${folderPath}" does not exist.` });
     }
 
     const fileId = await uploadFileToDrive(file.filename, folderId);
     if (!fileId) {
-      return res.status(500).send("Failed to upload file to Google Drive");
+      return res.status(300).send("Failed to upload file to Google Drive");
     }
 
+const checkQuery = "SELECT * FROM papers WHERE title = ?";
+    connectionPaperdb.query(checkQuery, [renameFileback], (checkErr, results) => {
+      if (checkErr) {
+        return res.status(502).send("Failed to verify file existence");
+      }
+
+      if (results.length > 0) {
+        return res.status(400).json({
+          message: `A file with the title "${renameFileback}" already exists in the database.`,
+        });
+      }
+ 
+    
     const filepath = `https://drive.google.com/file/d/${fileId}/view`;
 
     const query =
@@ -975,6 +988,7 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
           message: "File uploaded successfully to Google Drive",
           fileId: fileId,
         });
+      })
       }
     );
 
