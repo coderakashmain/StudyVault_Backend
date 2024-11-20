@@ -1028,7 +1028,6 @@ app.post("/api/Admin/AdminLogIn", (req, res) => {
 
   connectionPaperdb.query(query, [userid, password], (err, results) => {
     if (err) {
-      console.error({ err });
       return res.status(500).json({ error: "Internal server error" });
     }
     if (results.length === 0) {
