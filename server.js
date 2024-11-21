@@ -925,12 +925,19 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
     } else if (semormid === "midSem") {
       midsem = 1;
     }
-    // console.log("sem:", sem, "midsem:", midsem);
 
-    const folderPath = `MPC Papers Pdf/${educationLavel}/${semormid}/${studentyear}/${dptyear}/${departmentName}`;
-    // const folderPath =
-    //   "MPC Papers Pdf/Ug/Semester/3rd Year/Science/Data Science";
+    let folderPath;
+    
+    if(departmentName === 'Elective' || departmentName === 'Compulsory' || departmentName === 'E&V'){
+      folderPath = `MPC Papers Pdf/${departmentName}`;
+    }
+    else{
+
+      folderPath = `MPC Papers Pdf/${educationLavel}/${semormid}/${studentyear}/${dptyear}/${departmentName}`;
+    }
+    
     const folderId = await findNestedFolder(folderPath);
+ 
 
     if (!folderId) {
       return res
@@ -1035,7 +1042,7 @@ app.post("/api/Admin/AdminLogIn", (req, res) => {
     }
 
     const token = jwt.sign({ userId: results[0].userid }, SECRET_KEY, {
-      expiresIn: "1h", // Token expiration time
+      expiresIn: "12h", // Token expiration time
     });
 
     return res.status(200).json({ message: "Seccessfully LogIn", token });
