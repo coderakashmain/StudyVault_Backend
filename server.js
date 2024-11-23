@@ -14,7 +14,7 @@ const cookieParser = require("cookie-parser");
 const fs = require("fs");
 const { google } = require("googleapis");
 const mysql = require('mysql2');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 
 const app = express();
