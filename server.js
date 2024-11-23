@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
@@ -18,7 +18,7 @@ const bcrypt = require('bcryptjs');
 
 
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRETP;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 
 app.use(cors());
