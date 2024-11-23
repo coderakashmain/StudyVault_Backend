@@ -987,7 +987,7 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
 
     const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
     fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
-      if (err) console.error("Error deleting temp folder:", err);
+      // if (err) console.error("Error deleting temp folder:", err);
     });
 
     // Send success response
