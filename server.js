@@ -18,7 +18,7 @@ const bcrypt = require('bcryptjs');
 
 
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRETP;
 
 
 app.use(cors());
