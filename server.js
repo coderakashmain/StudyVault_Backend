@@ -18,7 +18,8 @@ const bcrypt = require('bcrypt');
 
 
 const app = express();
-const SECRET_KEY = process.env.SECRET_KEYP;
+const JWT_SECRET = process.env.JWT_SECRET;
+
 
 app.use(cors());
 app.use(express.json());
@@ -47,6 +48,16 @@ const drive = google.drive({
 });
 
 
+connectionUserdb.getConnection()
+    .catch(error => {
+        console.error('Database connection lost:', error);
+        process.exit(1); // Let PM2 restart the backend
+    });
+
+ if (!JWT_SECRET) {
+      console.error('JWT_SECRET is not defined in the environment variables!');
+      process.exit(1); // Stop the server if critical variables are missing
+    }
 
 
 // // Example function to query user data
@@ -407,7 +418,7 @@ app.post("/api/LogIn", async (req, res) => {
 
     if (results.length > 0) {
       const user = results[0];
-      const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: "24h" });
+      const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "24h" });
 
       res.cookie("token", token, {
         httpOnly: true,
@@ -433,7 +444,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  jwt.verify(token, SECRET_KEY, (err, user) => {
+  jwt.verify(token,JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ error: "Forbidden" });
     }
@@ -1030,7 +1041,7 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
   
         
       }
-      const token = jwt.sign({ userId: results[0].userid }, SECRET_KEY, {
+      const token = jwt.sign({ userId: results[0].userid },JWT_SECRET, {
         expiresIn: "12h", // Token expiration time
       });
   
@@ -1054,7 +1065,7 @@ app.get("/api/adminPage", async (req, res) => {
     }
 
     // Verify the token asynchronously
-    const decoded = await jwt.verify(token, SECRET_KEY);
+    const decoded = await jwt.verify(token,JWT_SECRET);
 
     // Token is valid, proceed with the request
     res.status(200).json({ message: "Admin page content", userId: decoded.userId });
