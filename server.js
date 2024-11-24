@@ -19,6 +19,7 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET=process.env.JWT_REFRESH_SECRET;
 
 
 app.use(cors());
@@ -85,7 +86,7 @@ getPapersData();
 
 
 
-async function findFolder(folderName) {
+async function findFolderupload(folderName) {
   try {
     const response = await drive.files.list({
       q: `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`,
@@ -185,34 +186,34 @@ const upload = multer({ storage });
 // POST Route to Handle File Upload and Google Drive Integration
 app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
   const { renameFileback, userid } = req.body;
-
   try {
     const file = req.file; // Get file info from multer
     if (!file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-
+    
     // Ensure folder exists or create it
-    let folderId = await findFolder("User Uploads Files");
+    let folderId = await findFolderupload("User Uploads Files");
     if (!folderId) {
       folderId = await createDriveFolder("User Uploads Files"); // Create folder if it doesn't exist
     }
-
+    
     // Upload the file to Google Drive
     const fileId = await uploadFileToDrive(file.filename, folderId);
     const filepath = `https://drive.google.com/file/d/${fileId}/view`;
-
+    
     // Insert file details into database
     if (fileId) {
       const query = "INSERT INTO user_uploads (user_id, papername, paperlink) VALUES (?, ?, ?)";
       await new Promise((resolve, reject) => {
+    
         connectionUserdb.query(query, [userid, renameFileback, filepath], (err) => {
           if (err) {
             console.error("Error inserting in database:", err);
             return reject("Error inserting data into database");
           }
-          resolve();
         });
+        resolve();
       });
     }
 
@@ -222,7 +223,7 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
 
     // Clean up temporary folders
     const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+    await fs.promises.readdir(tmpDir, { recursive: true, force: true });
 
     // Send success response
     return res.status(200).json({
@@ -423,7 +424,7 @@ app.post("/api/LogIn", async (req, res) => {
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production", // Set to true in production
-        maxAge: 3600000, // 1 hour in milliseconds
+        maxAge: 36000000, // 10 hour in milliseconds
       });
 
       res.status(200).json({ success: true, user });
@@ -1044,7 +1045,16 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
       const token = jwt.sign({ userId: results[0].userid },JWT_SECRET, {
         expiresIn: "12h", // Token expiration time
       });
-  
+
+      const refreshToken = jwt.sign({ userId: results[0].userid }, JWT_SECRET, {
+        expiresIn: "7d", // Refresh token expiration
+      });
+      
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Set to true in production
+        maxAge: 36000000, // 10 hour in milliseconds
+      });
       return res.status(200).json({ message: "Seccessfully LogIn", token });
   
     }catch(err){
@@ -1054,16 +1064,43 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
     });
 
 
+    app.post("/api/Admin/refreshToken", (req, res) => {
+      const { refreshToken } = req.cookies;
+    
+      if (!refreshToken) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    
+      try {
+        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    
+        const newAccessToken = jwt.sign({ userId: decoded.userId }, JWT_SECRET, {
+          expiresIn: "1h", // New access token valid for 1 hour
+        });
+    
+        res.status(200).json({ token: newAccessToken });
+      } catch (err) {
+        console.error(err);
+        res.status(403).json({ error: "Invalid or expired refresh token" });
+      }
+    });
+    
+
+
+
+
+
 app.get("/api/adminPage", async (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   try {
     // Get token from the Authorization header
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
+   
     // Verify the token asynchronously
     const decoded = await jwt.verify(token,JWT_SECRET);
 
@@ -1074,6 +1111,26 @@ app.get("/api/adminPage", async (req, res) => {
     res.status(401).json({ error: "Invalid or expired token" });
   }
 });
+
+
+app.post("/api/Admin/logout", (req, res) => {
+  try {
+    // Clear the refresh token cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    res.status(200).json({ message: "Successfully logged out" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
 
 
 /////////////
