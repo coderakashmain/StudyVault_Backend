@@ -223,7 +223,10 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
 
     // Clean up temporary folders
     const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
-    await fs.promises.readdir(tmpDir, { recursive: true, force: true });
+    if(tmpDir){
+
+      await fs.promises.readdir(tmpDir, { recursive: true, force: true });
+    }
 
     // Send success response
     return res.status(200).json({
@@ -1042,7 +1045,7 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
   
         
       }
-      const token = jwt.sign({ userId: results[0].userid },JWT_SECRET, {
+      const accestoken = jwt.sign({ userId: results[0].userid },JWT_SECRET, {
         expiresIn: "12h", // Token expiration time
       });
 
@@ -1055,7 +1058,7 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
         secure: process.env.NODE_ENV === "production", // Set to true in production
         maxAge: 36000000, // 10 hour in milliseconds
       });
-      return res.status(200).json({ message: "Seccessfully LogIn", token });
+      return res.status(200).json({ message: "Seccessfully LogIn", accestoken });
   
     }catch(err){
       return res.status(500).json({ error: "Internal server error" });
@@ -1078,7 +1081,7 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
           expiresIn: "1h", // New access token valid for 1 hour
         });
     
-        res.status(200).json({ token: newAccessToken });
+        res.status(200).json({ accestoken: newAccessToken });
       } catch (err) {
         console.error(err);
         res.status(403).json({ error: "Invalid or expired refresh token" });
@@ -1092,9 +1095,9 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
 
 app.get("/api/adminPage", async (req, res) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  const accestoken = authHeader && authHeader.split(" ")[1];
 
-  if (!token) {
+  if (!accestoken) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -1102,7 +1105,7 @@ app.get("/api/adminPage", async (req, res) => {
     // Get token from the Authorization header
    
     // Verify the token asynchronously
-    const decoded = await jwt.verify(token,JWT_SECRET);
+    const decoded = await jwt.verify(accestoken,JWT_SECRET);
 
     // Token is valid, proceed with the request
     res.status(200).json({ message: "Admin page content", userId: decoded.userId });
@@ -1121,6 +1124,7 @@ app.post("/api/Admin/logout", (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     });
+   
 
     res.status(200).json({ message: "Successfully logged out" });
   } catch (err) {
