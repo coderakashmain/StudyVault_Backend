@@ -225,7 +225,7 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
     const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
     if(tmpDir){
 
-      await fs.promises.readdir(tmpDir, { recursive: true, force: true });
+      await fs.promises.rm(tmpDir, { recursive: true, force: true });
     }
 
     // Send success response
@@ -242,28 +242,25 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
 
 app.get("/api/Profile/fetchpdf", async (req, res) => {
   try {
-    const { userid } = req.body;
-    const { papername, paperlink } = req.query;
-
+    const { userid } = req.query;
+    
+  
     // Build the query dynamically
-    let query = "SELECT * FROM user_uploads WHERE user_id = ?";
-    const params = [userid];
+    const query = "SELECT * FROM user_uploads WHERE user_id = ?";
+    
 
-    if (papername) {
-      query += " AND papername = ?";
-      params.push(papername);
-    }
-
-    if (paperlink) {
-      query += " AND paperlink = ?";
-      params.push(paperlink);
-    }
 
     // Execute the query
-    const [results] = await connectionUserdb.query(query, params);
+    const [results] = await connectionUserdb.query(query, [userid]);
+
+    if(results.length > 0){
+      
+      res.status(200).json(results);
+    }else{
+      res.status(400).json({error : 'User not found'})
+    }
 
     // Send the response
-    res.status(200).json(results);
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -1000,10 +997,10 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
       if (err) console.error("Error deleting temp file:", err);
     });
 
-    const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
-    fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
-      // if (err) console.error("Error deleting temp folder:", err);
-    });
+    // const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
+    // fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
+    //   // if (err) console.error("Error deleting temp folder:", err);
+    // });
 
     // Send success response
     res.status(200).send({
