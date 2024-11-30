@@ -229,6 +229,7 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
     }
 
     // Send success response
+
     return res.status(200).json({
       message: "File uploaded successfully to Google Drive",
       fileId: fileId, // Returning Google Drive File ID
@@ -238,182 +239,6 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
     return res.status(500).json({ error: "Failed to upload file" });
   }
 });
-
-
-
-async function uploadFileToDrivepp(filename, folderId) {
-  try {
-    const filePath = path.join(__dirname, "uploads", filename); // File saved temporarily in uploads folder
-    const fileMetadata = {
-      name: filename, // Use the uploaded file's name
-      parents: [folderId],
-    };
-
-    const media = {
-      mimeType: "image/jpeg", // Assuming the file is a PDF, adjust if needed
-      body: fs.createReadStream(filePath),
-    };
-
-    const response = await drive.files.create({
-      resource: fileMetadata,
-      media: media,
-      fields: "id",
-    });
-
-    const fileId = response.data.id;
-
-    drive.permissions.create({
-      fileId: fileId,
-      resource: {
-        role: "reader",
-        type: "anyone",
-      },
-    });
-
-    // console.log('File uploaded successfully to Google Drive. File ID:', fileId);
-
-    return fileId; // Return Google Drive file ID
-
-    // const publicUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-    // return publicUrl;
-
-  } catch (error) {
-    console.error("Error uploading file to Google Drive:", error);
-    throw error;
-  }
-}
-
-app.post("/api/Profile/PPupload", upload.single("file"), async (req, res) => {
-  const {  userid,image,file } = req.body;
-  try {
-    const file = req.file; // Get file info from multer
-  
-    if (!file) {
-        console.error({error : 'No file upload'})
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-    
-    // Ensure folder exists or create it
-    let folderId = await findFolderupload("User Profile Photoes");
-    if (!folderId) {
-      folderId = await createDriveFolder("User Profile Photoes"); // Create folder if it doesn't exist
-    }
-    
-    // Upload the file to Google Drive
-    const fileUrl = await uploadFileToDrivepp(file.filename, folderId);
- 
-    
-    // Insert file details into database
-
-    if (fileUrl) {
-      const query = "UPDATE users  SET profile_photo_id = ? WHERE id = ?";
-      await new Promise((resolve, reject) => {
-    
-        connectionUserdb.query(query, [fileUrl, userid], (err) => {
-          if (err) {
-            console.error("Error inserting in database:", err);
-            return reject("Error inserting data into database");
-          }
-        });
-        resolve();
-      });
-    }
-
-    // Delete the file from the local uploads directory after upload
-    const tempFilePath = path.join(__dirname, "uploads", file.filename);
-    await fs.promises.unlink(tempFilePath);
-
-    // Clean up temporary folders
-    const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
-    if(tmpDir){
-
-      await fs.promises.rm(tmpDir, { recursive: true, force: true });
-    }
-
-    // Send success response
-    return res.status(200).json({
-      message: "Profile picture uploaded successfully to Google Drive",
-      fileId: fileUrl, // Returning Google Drive File ID
-    });
-  } catch (error) {
-    console.error("Error uploading picture:", error);
-    return res.status(500).json({ error: "Failed to upload picture" });
-  }
-});
-
-
-app.get("/api/Profile/PPuploadAutofetch", async(req,res)=>{
-  try{
-    const id = req.query.id;
-    
-    const query = 'SELECT * FROM users where id = ?';
-    const [results] = await connectionUserdb.query(query, [id])
-    
-    if(results.length > 0){
-    const user = results[0];
-   
-    return res.status(200).json({
-      message : 'Successfully fetch pp',
-      photoid : user.profile_photo_id,
-    })
-   
-  }
-}catch(error){
-  console.error("Error fetching Porofile phoot:", error);
-  return res.status(500).json({ error: "Internal server error" });
-}
-
-});
-
-
-
-
-app.post('/api/updatePosition', async (req, res) => {
-  const { userId, position } = req.body;
-  try {
-    const query = 'UPDATE users SET position_x = ?, position_y = ? WHERE id = ?';
-    await connectionUserdb.query(query, [position.x, position.y, userId]);
-    res.status(200).json({ message: 'Position updated successfully' });
-  } catch (error) {
-    console.error('Error updating position:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/getUserProfile', async (req, res) => {
-  const { userId } = req.query;
-  if (!userId) {
-    return res.status(400).json({ message: 'Missing userId in request' });
-  }
-
-  try {
-    const query = 'SELECT profile_photo_id, position_x, position_y FROM users WHERE id = ?';
-    const [results] = await connectionUserdb.query(query, [userId]);
-    if (results.length > 0) {
-      const user = results[0];
-      const fileId = user.profile_photo_id;
-      const photoid = `https://drive.google.com/uc?export=view&id=${fileId}`;
-      try {
-        const response = await axios.get(photoid, { responseType: 'arraybuffer' });
-        res.set('Content-Type', 'image/jpeg');  // Adjust MIME type if necessary
-        res.status(200).send({
-          photoid : response.data,
-          position: { x: user.position_x, y: user.position_y },
-        });
-      } catch (error) {
-        res.status(500).send('Error fetching image');
-      }
-     
-    } else {
-      res.status(404).json({ message: 'User not found' });
-    }
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
 
 
 app.get("/api/Profile/fetchpdf", async (req, res) => {
@@ -1290,9 +1115,10 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
 
 
 app.get("/api/adminPage", async (req, res) => {
-  // const authHeader = req.headers["authorization"];
-  // const accestoken = authHeader && authHeader.split(" ")[1];
-  const { accestoken } = req.cookies;
+  const authHeader = req.headers["authorization"];
+  const accestoken = authHeader && authHeader.split(" ")[1];
+  // const { accestoken } = req.cookies;
+
     
 
   if (!accestoken) {
