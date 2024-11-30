@@ -150,7 +150,7 @@ async function uploadFileToDrive(filename, folderId) {
 
     const fileId = response.data.id;
 
-    drive.permissions.create({
+   await drive.permissions.create({
       fileId: fileId,
       resource: {
         role: "reader",
@@ -238,6 +238,182 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
     return res.status(500).json({ error: "Failed to upload file" });
   }
 });
+
+
+
+async function uploadFileToDrivepp(filename, folderId) {
+  try {
+    const filePath = path.join(__dirname, "uploads", filename); // File saved temporarily in uploads folder
+    const fileMetadata = {
+      name: filename, // Use the uploaded file's name
+      parents: [folderId],
+    };
+
+    const media = {
+      mimeType: "image/jpeg", // Assuming the file is a PDF, adjust if needed
+      body: fs.createReadStream(filePath),
+    };
+
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: "id",
+    });
+
+    const fileId = response.data.id;
+
+    drive.permissions.create({
+      fileId: fileId,
+      resource: {
+        role: "reader",
+        type: "anyone",
+      },
+    });
+
+    // console.log('File uploaded successfully to Google Drive. File ID:', fileId);
+
+    return fileId; // Return Google Drive file ID
+
+    // const publicUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    // return publicUrl;
+
+  } catch (error) {
+    console.error("Error uploading file to Google Drive:", error);
+    throw error;
+  }
+}
+
+app.post("/api/Profile/PPupload", upload.single("file"), async (req, res) => {
+  const {  userid,image,file } = req.body;
+  try {
+    const file = req.file; // Get file info from multer
+  
+    if (!file) {
+        console.error({error : 'No file upload'})
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    
+    // Ensure folder exists or create it
+    let folderId = await findFolderupload("User Profile Photoes");
+    if (!folderId) {
+      folderId = await createDriveFolder("User Profile Photoes"); // Create folder if it doesn't exist
+    }
+    
+    // Upload the file to Google Drive
+    const fileUrl = await uploadFileToDrivepp(file.filename, folderId);
+ 
+    
+    // Insert file details into database
+
+    if (fileUrl) {
+      const query = "UPDATE users  SET profile_photo_id = ? WHERE id = ?";
+      await new Promise((resolve, reject) => {
+    
+        connectionUserdb.query(query, [fileUrl, userid], (err) => {
+          if (err) {
+            console.error("Error inserting in database:", err);
+            return reject("Error inserting data into database");
+          }
+        });
+        resolve();
+      });
+    }
+
+    // Delete the file from the local uploads directory after upload
+    const tempFilePath = path.join(__dirname, "uploads", file.filename);
+    await fs.promises.unlink(tempFilePath);
+
+    // Clean up temporary folders
+    const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
+    if(tmpDir){
+
+      await fs.promises.rm(tmpDir, { recursive: true, force: true });
+    }
+
+    // Send success response
+    return res.status(200).json({
+      message: "Profile picture uploaded successfully to Google Drive",
+      fileId: fileUrl, // Returning Google Drive File ID
+    });
+  } catch (error) {
+    console.error("Error uploading picture:", error);
+    return res.status(500).json({ error: "Failed to upload picture" });
+  }
+});
+
+
+app.get("/api/Profile/PPuploadAutofetch", async(req,res)=>{
+  try{
+    const id = req.query.id;
+    
+    const query = 'SELECT * FROM users where id = ?';
+    const [results] = await connectionUserdb.query(query, [id])
+    
+    if(results.length > 0){
+    const user = results[0];
+   
+    return res.status(200).json({
+      message : 'Successfully fetch pp',
+      photoid : user.profile_photo_id,
+    })
+   
+  }
+}catch(error){
+  console.error("Error fetching Porofile phoot:", error);
+  return res.status(500).json({ error: "Internal server error" });
+}
+
+});
+
+
+
+
+app.post('/api/updatePosition', async (req, res) => {
+  const { userId, position } = req.body;
+  try {
+    const query = 'UPDATE users SET position_x = ?, position_y = ? WHERE id = ?';
+    await connectionUserdb.query(query, [position.x, position.y, userId]);
+    res.status(200).json({ message: 'Position updated successfully' });
+  } catch (error) {
+    console.error('Error updating position:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/getUserProfile', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(400).json({ message: 'Missing userId in request' });
+  }
+
+  try {
+    const query = 'SELECT profile_photo_id, position_x, position_y FROM users WHERE id = ?';
+    const [results] = await connectionUserdb.query(query, [userId]);
+    if (results.length > 0) {
+      const user = results[0];
+      const fileId = user.profile_photo_id;
+      const photoid = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      try {
+        const response = await axios.get(photoid, { responseType: 'arraybuffer' });
+        res.set('Content-Type', 'image/jpeg');  // Adjust MIME type if necessary
+        res.status(200).send({
+          photoid : response.data,
+          position: { x: user.position_x, y: user.position_y },
+        });
+      } catch (error) {
+        res.status(500).send('Error fetching image');
+      }
+     
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 
 
 app.get("/api/Profile/fetchpdf", async (req, res) => {
@@ -394,6 +570,7 @@ app.post("/api/LogIn/Signup", async (req, res) => {
 
     // Hash the password before storing it
     const hashedPassword = await bcrypt.hash(password, 10);
+    
 
     // Insert new user into the database
     const query = "INSERT INTO users (firstname, lastname, gmail, rollno, password, passwordcheck) VALUES(?,?,?,?,?,?)";
@@ -410,26 +587,42 @@ app.post("/api/LogIn/Signup", async (req, res) => {
 
 app.post("/api/LogIn", async (req, res) => {
   const { gmail, password } = req.body;
-
-  const query = "SELECT * FROM users WHERE gmail = ? AND password = ?";
-
+  
+ 
+  
+  const query = "SELECT * FROM users WHERE gmail = ?";
+  
   try {
     // Use `await` with `connectionUserdb.query` as `createPool` supports promises
-    const [results] = await connectionUserdb.query(query, [gmail, password]);
+    const [results] = await connectionUserdb.query(query, [gmail]);
+   
 
+    
     if (results.length > 0) {
       const user = results[0];
-      const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "24h" });
+      
+      const originalpassword = user.password;
+     
 
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production", // Set to true in production
-        maxAge: 36000000, // 10 hour in milliseconds
-      });
+      const isPasswordMatch = await bcrypt.compare(password, originalpassword);
+      if(isPasswordMatch){
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "24h" });
 
-      res.status(200).json({ success: true, user });
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production", // Set to true in production
+          maxAge: 36000000, // 10 hour in milliseconds
+        });
+  
+        res.status(200).json({ success: true, user });
+      }
+      else {
+        res.status(300).json({ error: "Invalid password" });
+      }
+
+    
     } else {
-      res.status(401).json({ error: "Invalid credentials" });
+      res.status(401).json({ error: "You are not resgistered" });
     }
   } catch (err) {
     console.error("Error retrieving data:", err);
@@ -447,7 +640,11 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token,JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ error: "Forbidden" });
+      if (err.name === 'TokenExpiredError') {
+        console.error('User token expired');
+        return res.status(401).send({ error: 'User token expired. Please login again.' });
+    }
+    return res.status(401).send('Invalid user token');
     }
     req.user = user;
     next();
@@ -780,13 +977,15 @@ app.post("/api/LogIn/verifyOtp", async (req, res) => {
 
 app.post("/api/LogIn/ForgatePw/ResetPassword",async (req, res) => {
   const { email, resetPassword } = req.body;
+
+  const hashedPassword = await bcrypt.hash(resetPassword, 10);
   const query =
     "UPDATE users SET password = ?, passwordcheck = ? WHERE gmail = ?";
 
     try{
       const [result] = await connectionUserdb.query(
         query,
-        [resetPassword, resetPassword, email]);
+        [hashedPassword, hashedPassword, email]);
 
         return res.status(200).json({ message: "Update password successfully" });
 
@@ -1091,8 +1290,10 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
 
 
 app.get("/api/adminPage", async (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const accestoken = authHeader && authHeader.split(" ")[1];
+  // const authHeader = req.headers["authorization"];
+  // const accestoken = authHeader && authHeader.split(" ")[1];
+  const { accestoken } = req.cookies;
+    
 
   if (!accestoken) {
     return res.status(401).json({ error: "Unauthorized" });
