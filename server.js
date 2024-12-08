@@ -15,6 +15,7 @@ const fs = require("fs");
 const { google } = require("googleapis");
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
+const mime = require('mime');
 
 
 const app = express();
@@ -239,6 +240,85 @@ app.post("/api/Profile/upload", upload.single("file"), async (req, res) => {
     return res.status(500).json({ error: "Failed to upload file" });
   }
 });
+
+
+async function uploadFileToDrivett(filename, folderId) {
+  try {
+    const filePath = path.join(__dirname, "uploads", filename);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    
+    const mimeType = mime.getType(filePath) || "application/octet-stream";
+    const fileMetadata = {
+      name: filename,
+      parents: [folderId],
+    };
+
+    const media = {
+      mimeType,
+      body: fs.createReadStream(filePath),
+    };
+
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: "id",
+    });
+
+    const fileId = response.data.id;
+
+    await drive.permissions.create({
+      fileId,
+      resource: {
+        role: "reader",
+        type: "anyone",
+      },
+    });
+
+    return fileId;
+  } catch (error) {
+    console.error("Error uploading file to Google Drive:", error);
+    throw error;
+  }
+}
+
+
+app.post("/api/Profile/upload/non-user", upload.array("files", 10), async (req, res) => {
+  try {
+    const files = req.files;
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    let folderId = await findFolderupload("User Uploads Files");
+    if (!folderId) {
+      folderId = await createDriveFolder("User Uploads Files");
+    }
+
+    const uploadedFileIds = [];
+    for (const file of files) {
+      const fileId = await uploadFileToDrivett(file.filename, folderId);
+      uploadedFileIds.push({ filename: file.originalname, fileId });
+
+      const tempFilePath = path.join(__dirname, "uploads", file.filename);
+      await fs.promises.unlink(tempFilePath);
+    }
+
+    return res.status(200).json({
+      message: "Files uploaded successfully to Google Drive",
+      uploadedFiles: uploadedFileIds,
+    });
+  } catch (error) {
+    console.error("Error uploading files:", error);
+    return res.status(500).json({ error: "Failed to upload files" });
+  }
+});
+
+
+
+
+
 
 
 app.get("/api/Profile/fetchpdf", async (req, res) => {
