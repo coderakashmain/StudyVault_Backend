@@ -21,6 +21,7 @@ const mime = require('mime');
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET=process.env.JWT_REFRESH_SECRET;
+const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY
 
 
 app.use(cors());
@@ -82,6 +83,32 @@ async function getPapersData() {
 
 getUserData();
 getPapersData();
+
+
+
+
+
+
+app.post('/api/verify-captcha', async (req, res) => {
+  const { captcha } = req.body;
+  
+  const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify`, null, {
+    params: {
+      secret: RECAPTCHA_SECRET_KEY,
+      response: captcha,
+    },
+  });
+
+  const data = response.data;
+
+  if (data.success && data.score > 0.5) {
+    // Score is above threshold, successful verification
+    res.json({ success: true });
+  } else {
+    // Failed verification
+    res.json({ success: false });
+  }
+});
 
 
 
