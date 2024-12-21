@@ -16,6 +16,7 @@ const { google } = require("googleapis");
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const mime = require('mime');
+const axios = require('axios');
 
 
 const app = express();
@@ -89,26 +90,37 @@ getPapersData();
 
 
 
+
 app.post('/api/verify-captcha', async (req, res) => {
   const { captcha } = req.body;
-  
-  const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify`, null, {
-    params: {
-      secret: RECAPTCHA_SECRET_KEY,
-      response: captcha,
-    },
-  });
 
-  const data = response.data;
+  if (!captcha) {
+    return res.status(400).json({ success: false, message: 'Captcha token is missing' });
+  }
 
-  if (data.success && data.score > 0.5) {
-    // Score is above threshold, successful verification
-    res.json({ success: true });
-  } else {
-    // Failed verification
-    res.json({ success: false });
+  try {
+    const response = await axios.post(
+      `https://www.google.com/recaptcha/api/siteverify`,
+      null,
+      {
+        params: {
+          secret: RECAPTCHA_SECRET_KEY, // Your secret key
+          response: captcha,
+        },
+      }
+    );
+
+    if (response.data.success) {
+      return res.json({ success: true });
+    } else {
+      return res.status(400).json({ success: false, message: 'Captcha verification failed' });
+    }
+  } catch (error) {
+    console.error('Error verifying captcha:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
 
 
 
