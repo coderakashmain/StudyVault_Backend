@@ -91,38 +91,34 @@ getPapersData();
 
 
 
-app.post('/api/verify-captcha', async (req, res) => {
-  const { captcha } = req.body;
 
-  if (!captcha) {
-    return res.status(400).json({ success: false, message: 'Captcha token is missing' });
-  }
-
+const verifyRecaptcha = async (token) => {
   try {
-    const response = await axios.post(
-      `https://www.google.com/recaptcha/api/siteverify`,
-      null,
-      {
-        params: {
-          secret: RECAPTCHA_SECRET_KEY, // Your secret key
-          response: captcha,
-        },
-      }
-    );
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Ensure this is correctly set in your environment
 
-    if (response.data.success) {
-      return res.json({ success: true });
-    } else {
-      return res.status(400).json({ success: false, message: 'Captcha verification failed' });
+    if (!secretKey) {
+      throw new Error("RECAPTCHA_SECRET_KEY is not defined in environment variables.");
     }
+
+    const url = `https://www.google.com/recaptcha/api/siteverify`;
+
+    // Send the request to Google's reCAPTCHA server
+    const response = await axios.post(url, null, {
+      params: {
+        secret: secretKey,
+        response: token, // Token received from the frontend
+      },
+    });
+
+    // Return the success status from Google's response
+    return response.data.success;
   } catch (error) {
-    console.error('Error verifying captcha:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error verifying reCAPTCHA:", error.message);
+    return false;
   }
-});
+};
 
-
-
+ verifyRecaptcha();
 
 
 
