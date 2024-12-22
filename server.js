@@ -1116,6 +1116,12 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
     const [checkResults] = await connectionPaperdb.query(checkQuery, [renameFileback]);
 
     if (checkResults.length > 0) {
+     
+      const duplicatFile = path.join(__dirname, "uploads", file.filename);
+      fs.unlink(duplicatFile, (err) => {
+        if (err) console.error("Error deleting temp file:", err);
+      });
+
       return res.status(400).json({
         message: `A file with the title "${renameFileback}" already exists in the database.`,
       });
@@ -1151,7 +1157,6 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
     //   // if (err) console.error("Error deleting temp folder:", err);
     // });
 
-    // Send success response
     res.status(200).send({
       message: "File uploaded successfully to Google Drive",
       fileId: fileId,
