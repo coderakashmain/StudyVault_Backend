@@ -88,13 +88,18 @@ getPapersData();
 
 
 
+app.set('trust proxy', 1); 
 
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 100, // limit each IP to 100 requests per minute
+  handler: (req, res) => {
+    console.log(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).send("Too many requests, please try again later.");
+  },
 });
 
-app.use(limiter);
+app.use('/api/', limiter);
 
 
 
