@@ -17,6 +17,7 @@ const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const mime = require('mime');
 const axios = require('axios');
+const rateLimit = require('express-rate-limit');
 
 
 const app = express();
@@ -88,37 +89,46 @@ getPapersData();
 
 
 
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // limit each IP to 100 requests per minute
+});
+
+app.use(limiter);
 
 
 
 
-const verifyRecaptcha = async (token) => {
+
+app.post('/api/verify-recaptcha', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ success: false, message: 'No token provided' });
+  }
+
   try {
-    const secretKey = process.env.RECAPTCHA_SECRET_KEY; // Ensure this is correctly set in your environment
-
-    if (!secretKey) {
-      throw new Error("RECAPTCHA_SECRET_KEY is not defined in environment variables.");
-    }
-
-    const url = `https://www.google.com/recaptcha/api/siteverify`;
-
-    // Send the request to Google's reCAPTCHA server
-    const response = await axios.post(url, null, {
+    // Use axios to send the token to Google's reCAPTCHA verification API
+    const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify`, null, {
       params: {
-        secret: secretKey,
-        response: token, // Token received from the frontend
+        secret: RECAPTCHA_SECRET_KEY,
+        response: token,
       },
     });
 
-    // Return the success status from Google's response
-    return response.data.success;
+    if (response.data.success && response.data.score >= 0.7) {
+      
+      // If verification is successful and the score is above threshold
+      return res.json({ success: true });
+    } else {
+      // If verification failed or score is too low
+      return res.json({ success: false, message: 'reCAPTCHA verification failed' });
+    }
   } catch (error) {
-    console.error("Error verifying reCAPTCHA:", error.message);
-    return false;
+    console.error('Error during reCAPTCHA verification:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
-};
-
- verifyRecaptcha();
+});
 
 
 
