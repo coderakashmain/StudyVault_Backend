@@ -556,12 +556,12 @@ app.post("/api/LogIn", async (req, res) => {
 
       const isPasswordMatch = await bcrypt.compare(password, originalpassword);
       if(isPasswordMatch){
-        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
 
         res.cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
-          maxAge: 36000000, // 10 hour in milliseconds
+          maxAge: 1000*60*60*24, 
         });
   
         res.status(200).json({ success: true, user });
@@ -1181,6 +1181,7 @@ app.get("/api/admin/fetchData", async (req, res) => {
 app.post("/api/Admin/AdminLogIn", async (req, res) => {
     const { userid, password } = req.body;
   
+   
     const query = "SELECT * FROM admin_login WHERE userid = ? AND password = ? ";
   
     try{
@@ -1192,19 +1193,15 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
         
       }
       const accestoken = jwt.sign({ userId: results[0].userid },JWT_SECRET, {
-        expiresIn: "12h", // Token expiration time
+        expiresIn: "7d", // Token expiration time
       });
 
-      const refreshToken = jwt.sign({ userId: results[0].userid }, JWT_SECRET, {
-        expiresIn: "7d", // Refresh token expiration
-      });
-      
-      res.cookie("refreshToken", refreshToken, {
+      res.cookie("accestoken", accestoken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production", // Set to true in production
-        maxAge: 36000000, // 10 hour in milliseconds
+        maxAge: 1000*60*60*24, // 10 hour in milliseconds
       });
-      return res.status(200).json({ message: "Seccessfully LogIn", accestoken });
+      return res.status(200).json({ message: "Seccessfully LogIn"});
   
     }catch(err){
       return res.status(500).json({ error: "Internal server error" });
@@ -1213,54 +1210,43 @@ app.post("/api/Admin/AdminLogIn", async (req, res) => {
     });
 
 
-    app.post("/api/Admin/refreshToken", (req, res) => {
-      const { refreshToken } = req.cookies;
-    
-      if (!refreshToken) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-    
-      try {
-        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
-    
-        const newAccessToken = jwt.sign({ userId: decoded.userId }, JWT_SECRET, {
-          expiresIn: "1h", // New access token valid for 1 hour
-        });
-    
-        res.status(200).json({ accestoken: newAccessToken });
-      } catch (err) {
-        console.error(err);
-        res.status(403).json({ error: "Invalid or expired refresh token" });
-      }
-    });
-    
-
-
-
-
-
 app.get("/api/adminPage", async (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const accestoken = authHeader && authHeader.split(" ")[1];
-  // const { accestoken } = req.cookies;
 
-    
-
+  const accestoken = req.cookies.accestoken;
+  
   if (!accestoken) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-
+  
+  jwt.verify(accestoken,JWT_SECRET, (err, user) => {
+    if (err) {
+      if (err.name === 'TokenExpiredError') {
+        console.error('Admin token expired');
+        return res.status(405).send({ error: 'Admin token expired. Please login again.' });
+    }
+    return res.status(401).send('Invalid Admin token');
+    }
+    req.userid = user;
+  });
+  const query = "SELECT * FROM admin_login WHERE userid = ?";
+  
   try {
-    // Get token from the Authorization header
-   
-    // Verify the token asynchronously
-    const decoded = await jwt.verify(accestoken,JWT_SECRET);
+    
+  
+    const [results] = await connectionPaperdb.query(query, [ req.userid.userId]);
+    
+    if (results.length > 0) {
+      
+    res.status(200).json({ message: "Admin page content"});
+    } else {
+      res.status(400).json({ error: "admin not found" });
+      return res.status({ error: " admin found" });
+    }
 
-    // Token is valid, proceed with the request
-    res.status(200).json({ message: "Admin page content", userId: decoded.userId });
+  
   } catch (err) {
-    console.error("Error during token verification:", err);
-    res.status(401).json({ error: "Invalid or expired token" });
+    console.error("Error during admin  verification:", err);
+    res.status(500).json({ error: "Error during admin  verification" });
   }
 });
 
@@ -1268,7 +1254,7 @@ app.get("/api/adminPage", async (req, res) => {
 app.post("/api/Admin/logout", (req, res) => {
   try {
     // Clear the refresh token cookie
-    res.clearCookie("refreshToken", {
+    res.clearCookie("accestoken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
