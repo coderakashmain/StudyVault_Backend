@@ -31,6 +31,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(cookieParser());
 
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -628,7 +629,9 @@ app.get("/api/signup-check", authenticateToken,async (req, res) => {
 
 app.get("/api/Profile", authenticateToken, async (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
-
+  if (!req.user || !req.user.id) {
+    return res.status(400).json({ error: "Invalid user information in token" });
+  }
 
   try {
     const [results] = await connectionUserdb.query(query, [req.user.id]);
@@ -649,6 +652,9 @@ app.get("/api/Profile", authenticateToken, async (req, res) => {
 
 app.get("/api/Profile", authenticateToken, async (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
+  if (!req.user || !req.user.id) {
+    return res.status(400).json({ error: "Invalid user information in token" });
+  }
 
 
   try {
@@ -669,6 +675,11 @@ app.get("/api/Profile", authenticateToken, async (req, res) => {
 
 app.get("/api", authenticateToken,async (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
+  // console.log('dsfd');
+
+  if (!req.user || !req.user.id) {
+    return res.status(400).json({ error: "Invalid user information in token" });
+  }
 
   try{
     const [results] = await  connectionUserdb.query(query, [req.user.id]);
@@ -702,6 +713,11 @@ app.post("/api/logOut", (req, res) => {
 // Paper PDF BACKEND
 
 app.get("/api/login-check-filter", authenticateToken, async (req, res) => {
+
+  if (!req.user || !req.user.id) {
+    return res.status(400).json({ error: "Invalid user information in token" });
+  }
+// console.log('hle')
   const query = "SELECT * FROM users WHERE id = ?";
 
   try {
