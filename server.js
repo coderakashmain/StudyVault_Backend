@@ -834,6 +834,51 @@ app.get("/api/Filter", async (req, res) => {
   }
 });
 
+// syllabus 
+
+
+
+app.get("/api/syllabus", async (req, res) => {
+  let query = "SELECT * FROM  syllabus WHERE 1=1";
+  const params = [];
+
+  try {
+    // Add departmentName filter if provided
+    if (req.query.Educationlavel) {
+      query += " AND EducationalLable = ?";
+      params.push(req.query.Educationlavel);
+    }
+    
+    // Add educationLevel filter for UG and PG
+    if (req.query.Stream) {
+      
+      query += " AND Stream = ?";
+      
+      params.push(req.query.Stream);
+  
+    }
+
+   
+
+
+  if (!params) {
+      return res.status(400).json({ error: "No filter parameters provided" });
+    }
+
+
+    
+
+    // Execute the query with parameters
+    const [results] = await connectionPaperdb.query(query, params);
+
+    // Return the filtered results
+    res.status(200).json(results);
+  } catch (err) {
+    console.error("Error fetching syllabus:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 // Forgate page
 
