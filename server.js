@@ -1233,6 +1233,95 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+//syllabus upload
+app.post("/api/Admin/syllabusUpload", upload.single("file"), async (req, res) => {
+  const { renameFileback, filtetuploaddata } = req.body;
+  const parsedData = JSON.parse(filtetuploaddata);
+
+  const {
+    EducationLevel,
+   Stream,
+   subject
+  } = parsedData;
+
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).send("No file uploaded");
+    }
+
+   
+  
+
+    let folderId = await findFolderupload("Syllabus");
+    if (!folderId) {
+      folderId = await createDriveFolder("Syllabus"); // Create folder if it doesn't exist
+    }
+
+    // if (!folderId) {
+    //   return res.status(401).json({ message: `Folder "${folderPath}" does not exist.` });
+    // }
+
+    // Upload the file to Google Drive
+    const fileId = await uploadFileToDrive(file.filename, folderId);
+    if (!fileId) {
+      return res.status(300).send("Failed to upload file to Google Drive");
+    }
+
+    // Check if a file with the same title already exists in the database
+    const checkQuery = "SELECT * FROM syllabus WHERE title = ?";
+    const [checkResults] = await connectionPaperdb.query(checkQuery, [renameFileback]);
+
+    if (checkResults.length > 0) {
+     
+      const duplicatFile = path.join(__dirname, "uploads", file.filename);
+      fs.unlink(duplicatFile, (err) => {
+        if (err) console.error("Error deleting temp file:", err);
+      });
+
+      return res.status(400).json({
+        message: `A file with the title "${renameFileback}" already exists in the database.`,
+      });
+    }
+
+    // Construct the file URL
+    const filepath = `https://drive.google.com/file/d/${fileId}/view`;
+
+    // Insert the file details into the database
+    const insertQuery =
+      "INSERT INTO syllabus (title, Subject, Stream, EducationalLable, url) VALUES (?, ?, ?, ?, ?)";
+
+    await connectionPaperdb.query(insertQuery, [
+      renameFileback,
+      subject,
+      Stream,
+      EducationLevel,
+      filepath,
+    ]);
+
+    // Clean up the temporary file
+    const tempFilePath = path.join(__dirname, "uploads", file.filename);
+    fs.unlink(tempFilePath, (err) => {
+      if (err) console.error("Error deleting temp file:", err);
+    });
+
+    // const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
+    // fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
+    //   // if (err) console.error("Error deleting temp folder:", err);
+    // });
+
+    res.status(200).send({
+      message: "File uploaded successfully to Google Drive",
+      fileId: fileId,
+    });
+  } catch (error) {
+    console.error("Error processing request:", error);
+    res.status(500).send("An error occurred while processing the request");
+  }
+});
+
+
+
 
 app.get("/api/admin/fetchData", async (req, res) => {
   let query = "SELECT * FROM papers ";
