@@ -24,12 +24,16 @@ const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET=process.env.JWT_REFRESH_SECRET;
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY
+const APP_ID_CASHFREE = process.env.APP_ID_CASHFREE;
+const  SECRET_KEY_CASHFREE = process.env.SECRET_KEY_CASHFREE;
+const  CASHFREE_URL = process.env.CASHFREE_URL;
 
 
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
 
 const transporter = nodemailer.createTransport({
@@ -1469,6 +1473,97 @@ app.get('/api/connectusdata', async (req,res)=>{
   return res.status(500).json({ error: "Internal Server Error" });
 }
   
+});
+
+//CASHFREEPAY
+
+
+const generatePaymentLink = async (amount, customerEmail, customerPhone, customerId, redirect_url) => {
+  const data = {
+    order_amount: amount,
+    order_currency: 'INR',
+    customer_details: {
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      customer_id: customerId
+    },
+    order_meta: {
+      notify_url:'https://webhook.site/23f5d25a-88aa-4a38-a1de-f7e74a3e7f91',
+      return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
+      payment_methods: "upi,cc,dc,nb,app" 
+
+    },
+    order_id: `ORD_${Date.now()}`, // Generate a unique order ID
+    // payment_methods: ["upi", "card", "netbanking", "wallet"]// Payment methods (comma-separated)
+  };
+
+
+
+  try {
+    const response = await axios.post(CASHFREE_URL, data, {
+      headers: {
+        "accept": "application/json",
+        "x-api-version": "2023-08-01",
+        "Content-Type": "application/json",
+        "x-client-id": APP_ID_CASHFREE,   // Replace with your Cashfree App ID
+        "x-client-secret": SECRET_KEY_CASHFREE,  
+      },
+    });
+    
+    // console.log(response.data);
+    if (response.data && response.data.cf_order_id) {
+      
+      const paymentLink = `https://www.cashfree.com/pg/orders/${response.data.cf_order_id}/payments`;
+      return paymentLink;   // Send back the payment link
+    } else {
+      throw new Error("Failed to generate payment link");
+    }
+ // Return the payment link to the frontend
+  } catch (error) {
+    console.error('Error generating payment link:', error.response?.data || error.message);
+    throw new Error('Failed to generate payment link');
+  }
+};
+
+// Route to initiate payment
+app.post('/api/donate-us', async (req, res) => {
+  // console.log("Received data:", req.body);
+  const { amount, customerEmail, customerPhone, redirect_url } = req.body;
+
+  const customerId = `cust_${Date.now()}`;
+  if (!amount || !customerEmail || !customerPhone || !redirect_url ) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const paymentLink = await generatePaymentLink(amount, customerEmail, customerPhone, customerId, redirect_url);
+
+    if (paymentLink) {
+      res.json({ payment_link: paymentLink });  // Send payment link in response
+    } else {
+      res.status(400).json({ error: "Failed to generate payment link" });
+    }
+  } catch (error) {
+    console.error("Error in generating payment link:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Route to handle payment response
+app.get('/api/payment-response', (req, res) => {
+  const { order_id, tx_status } = req.query;
+
+  if (!order_id || !tx_status) {
+    return res.status(400).send("Missing required parameters.");
+  }
+
+  if (tx_status.toUpperCase() === 'SUCCESS') {
+    // TODO: Save order success details in the database
+    res.send("Payment Successful!");
+  } else {
+    // TODO: Handle payment failure (e.g., retry logic)
+    res.send("Payment Failed. Please try again.");
+  }
 });
 
 
