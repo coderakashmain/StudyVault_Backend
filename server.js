@@ -1579,7 +1579,7 @@ app.post('/api/create-payment-order', async (req, res) => {
       customer_id: customerId,        // Corrected: moved inside customer_details
     },
     order_meta: {
-      notify_url: `${req.protocol}://${req.get('host')}/payment-donate-us/notifyurl`, // Replace with your actual webhook URL
+      notify_url: `${req.protocol}://${req.get('host')}/payment-donate-us/notifyurlCheck`, // Replace with your actual webhook URL
       return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
       payment_methods: "upi,cc,dc,nb,app", // Payment methods
     },
@@ -1600,7 +1600,8 @@ app.post('/api/create-payment-order', async (req, res) => {
 
 
     const paymentSessionId = response.data.payment_session_id;
-    res.json({ paymentSessionId });
+    const orderid = response.data.order_id;
+    res.json({ paymentSessionId ,orderid});
   } catch (error) {
     console.error('Error creating payment order:', error);
 
