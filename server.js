@@ -1478,92 +1478,182 @@ app.get('/api/connectusdata', async (req,res)=>{
 //CASHFREEPAY
 
 
-const generatePaymentLink = async (amount, customerEmail, customerPhone, customerId, redirect_url) => {
-  const data = {
+// const generatePaymentLink = async (amount, customerEmail, customerPhone, customerId, redirect_url) => {
+//   const data = {
+//     order_amount: amount,
+//     order_currency: 'INR',
+//     customer_details: {
+//       customer_email: customerEmail,
+//       customer_phone: customerPhone,
+//       customer_id: customerId
+//     },
+//     order_meta: {
+//       notify_url:'https://webhook.site/23f5d25a-88aa-4a38-a1de-f7e74a3e7f91',
+//       return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
+//       payment_methods: "upi,cc,dc,nb,app" ,
+      
+//     },
+//     order_id: `ORD_${Date.now()}`, // Generate a unique order ID
+//     // payment_methods: ["upi", "card", "netbanking", "wallet"]// Payment methods (comma-separated)
+//   };
+
+
+
+//   try {
+//     const response = await axios.post(CASHFREE_URL, data, {
+//       headers: {
+//         "accept": "application/json",
+//         "x-api-version": "2023-08-01",
+//         "Content-Type": "application/json",
+//         "x-client-id":APP_ID_CASHFREE,   // Replace with your Cashfree App ID
+//         "x-client-secret":SECRET_KEY_CASHFREE,  
+//       },
+//     });
+    
+
+//     console.log(response.data);
+//     if (response.data && response.data.cf_order_id) {
+      
+//       const paymentLink = `https://sandbox.cashfree.com/pg/orders/${response.data.cf_order_id}/payments`;
+//       return paymentLink;   // Send back the payment link
+//     } else {
+//       throw new Error("Failed to generate payment link");
+//     }
+//  // Return the payment link to the frontend
+//   } catch (error) {
+//     console.error('Error generating payment link:', error.response?.data || error.message);
+//     throw new Error('Failed to generate payment link');
+//   }
+// };
+
+// Route to initiate payment
+// app.post('/api/donate-us', async (req, res) => {
+//   // console.log("Received data:", req.body);
+//   const { amount, customerEmail, customerPhone, redirect_url } = req.body;
+
+//   const customerId = `cust_${Date.now()}`;
+//   if (!amount || !customerEmail || !customerPhone || !redirect_url ) {
+//     return res.status(400).json({ error: "Missing required fields" });
+//   }
+
+//   try {
+//     const paymentLink = await generatePaymentLink(amount, customerEmail, customerPhone, customerId, redirect_url);
+
+//     if (paymentLink) {
+//       res.json({ payment_link: paymentLink });  // Send payment link in response
+//     } else {
+//       res.status(400).json({ error: "Failed to generate payment link" });
+//     }
+//   } catch (error) {
+//     console.error("Error in generating payment link:", error.message);
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// });
+
+
+const verifySignature = (body, receivedSignature) => {
+  const hmac = crypto.createHmac('sha256', SECRET_KEY_CASHFREE);
+  hmac.update(JSON.stringify(body));
+  const calculatedSignature = hmac.digest('base64');
+  return receivedSignature === calculatedSignature;
+};
+
+
+app.post('/api/create-payment-order', async (req, res) => {
+  const { amount, customerEmail, customerPhone, redirect_url } = req.body;
+
+  if (!amount || !customerEmail || !customerPhone) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const customerId = `cust_${Date.now()}`;
+  const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
+
+  const data =  {
     order_amount: amount,
     order_currency: 'INR',
     customer_details: {
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-      customer_id: customerId
+      customer_email: customerEmail,  // Corrected: moved inside customer_details
+      customer_phone: customerPhone,  // Corrected: moved inside customer_details
+      customer_id: customerId,        // Corrected: moved inside customer_details
     },
     order_meta: {
-      notify_url:'https://webhook.site/23f5d25a-88aa-4a38-a1de-f7e74a3e7f91',
+      notify_url: `${req.protocol}://${req.get('host')}/payment-donate-us/notifyurl`, // Replace with your actual webhook URL
       return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
-      payment_methods: "upi,cc,dc,nb,app" 
-
+      payment_methods: "upi,cc,dc,nb,app", // Payment methods
     },
-    order_id: `ORD_${Date.now()}`, // Generate a unique order ID
-    // payment_methods: ["upi", "card", "netbanking", "wallet"]// Payment methods (comma-separated)
-  };
-
-
+    order_id: orderId,
+  }
+ 
 
   try {
-    const response = await axios.post(CASHFREE_URL, data, {
+    const response = await axios.post(CASHFREE_URL,data,{
       headers: {
-        "accept": "application/json",
-        "x-api-version": "2023-08-01",
         "Content-Type": "application/json",
-        "x-client-id": APP_ID_CASHFREE,   // Replace with your Cashfree App ID
-        "x-client-secret": SECRET_KEY_CASHFREE,  
-      },
+        "accept": "application/json",
+        "x-client-id": APP_ID_CASHFREE,   
+        "x-client-secret": SECRET_KEY_CASHFREE,
+        'x-api-version': "2023-08-01",
+      }
     });
-    
 
-    // console.log(response.data);
-    if (response.data && response.data.cf_order_id) {
-      
-      const paymentLink = `https://www.cashfree.com/pg/orders/${response.data.cf_order_id}/payments`;
-      return paymentLink;   // Send back the payment link
-    } else {
-      throw new Error("Failed to generate payment link");
-    }
- // Return the payment link to the frontend
+
+    const paymentSessionId = response.data.payment_session_id;
+    res.json({ paymentSessionId });
   } catch (error) {
-    console.error('Error generating payment link:', error.response?.data || error.message);
-    throw new Error('Failed to generate payment link');
-  }
-};
+    console.error('Error creating payment order:', error);
 
-// Route to initiate payment
-app.post('/api/donate-us', async (req, res) => {
-  // console.log("Received data:", req.body);
-  const { amount, customerEmail, customerPhone, redirect_url } = req.body;
-
-  const customerId = `cust_${Date.now()}`;
-  if (!amount || !customerEmail || !customerPhone || !redirect_url ) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-
-  try {
-    const paymentLink = await generatePaymentLink(amount, customerEmail, customerPhone, customerId, redirect_url);
-
-    if (paymentLink) {
-      res.json({ payment_link: paymentLink });  // Send payment link in response
+    // Log detailed error information
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      console.error('Error status:', error.response.status);
     } else {
-      res.status(400).json({ error: "Failed to generate payment link" });
+      console.error('Error message:', error.message);
     }
-  } catch (error) {
-    console.error("Error in generating payment link:", error.message);
-    res.status(500).json({ error: "Internal Server Error" });
+
+    res.status(500).send('Error creating payment order');
   }
 });
 
-// Route to handle payment response
-app.get('/api/payment-response', (req, res) => {
-  const { order_id, tx_status } = req.query;
-
-  if (!order_id || !tx_status) {
-    return res.status(400).send("Missing required parameters.");
+app.post('/api/payment-donate-us/notifyurl', (req, res) => {
+  const signature = req.headers['x-signature'];
+  if (!verifySignature(req.body, signature)) {
+   console.log("Invalid Signatute");
+    return res.status(400).send('Invalid Signature');
   }
 
-  if (tx_status.toUpperCase() === 'SUCCESS') {
-    // TODO: Save order success details in the database
-    res.send("Payment Successful!");
-  } else {
-    // TODO: Handle payment failure (e.g., retry logic)
-    res.send("Payment Failed. Please try again.");
+  console.log("Payment notification received:", req.body);
+  res.status(200).send('Notification received successfully');
+});
+
+
+
+app.get('/api/payment-status/:orderId', async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const response = await axios.get(`https://www.cashfree.com/pg/orders/${orderId}`, {
+      headers: {
+        'x-client-id': APP_ID_CASHFREE,
+        'x-client-secret': SECRET_KEY_CASHFREE,
+        'x-api-version': '2023-08-01'
+      }
+    });
+
+
+
+    if (response.data && response.data.order_status) {
+      res.status(200).json({
+        orderId: response.data.order_id,
+        status: response.data.order_status,
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid response from Cashfree' });
+    }
+  } catch (error) {
+    console.error('Error fetching payment status:', error);
+    res.status(500).json({ error: 'Failed to fetch payment status' });
   }
 });
 
