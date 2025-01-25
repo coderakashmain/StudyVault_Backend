@@ -1565,8 +1565,38 @@ app.post('/api/create-payment-order', async (req, res) => {
   if (!amount || !customerEmail || !customerPhone) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+  let customerId;
 
-  const customerId = `cust_${Date.now()}`;
+  try {
+    
+    const quary = "SELECT * FROM customers WHERE customer_phone = ?";
+
+    const [results] = await connectionUserdb.query(quary, [customerPhone]);
+
+    if (results.length > 0) {
+       customerId = results[0].customer_id;
+    } else{
+      customerId = `cust_${Date.now()}`;
+
+      try{
+        const addquary = "INSERT INTO customers (customer_id, customer_phone) VALUES (?, ?)"
+
+
+        const [results] = await connectionUserdb.query(addquary, [customerId,customerPhone]);
+  
+      }catch(err){
+        console.error("update cutomer err",err);
+      }
+
+     
+
+    }
+  
+   
+
+
+
+   
   const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
 
@@ -1615,6 +1645,9 @@ app.post('/api/create-payment-order', async (req, res) => {
 
     res.status(500).send('Error creating payment order');
   }
+}catch(err){
+  console.error("Number findding error",err);
+ }
 });
 
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
@@ -1632,13 +1665,16 @@ app.post('/api/payment-donate-us/notifyurl', (req, res) => {
 
 app.get('/api/payment-status/:orderId', async (req, res) => {
   const { orderId } = req.params;
+ 
 
   try {
-    const response = await axios.get(`https://www.cashfree.com/pg/orders/${orderId}`, {
+    const response = await axios.get(`${CASHFREE_URL}/${orderId}`, {
       headers: {
-        'x-client-id': APP_ID_CASHFREE,
-        'x-client-secret': SECRET_KEY_CASHFREE,
-        'x-api-version': '2023-08-01'
+        "Content-Type": "application/json",
+        "accept": "application/json",
+        "x-client-id": APP_ID_CASHFREE,   
+        "x-client-secret": SECRET_KEY_CASHFREE,
+        'x-api-version': "2023-08-01",
       }
     });
 
