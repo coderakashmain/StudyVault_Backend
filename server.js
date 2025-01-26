@@ -1573,7 +1573,8 @@ app.post('/api/create-payment-order', async (req, res) => {
 
 const verifySignature = (body, receivedSignature) => {
   const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
-  hmac.update(body);  // No need to stringify as body is already raw string from express.raw()
+  const bodyString = JSON.stringify(body); // No need to stringify as body is already raw string from express.raw()
+  hmac.update(bodyString); 
   const calculatedSignature = hmac.digest('base64');
   console.log( "Recieved signature Is : ",receivedSignature);
   console.log( "calculatedSignature signature Is : ",calculatedSignature);
