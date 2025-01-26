@@ -1530,7 +1530,7 @@ app.post('/api/create-payment-order', async (req, res) => {
       customer_id: customerId,        // Corrected: moved inside customer_details
     },
     order_meta: {
-      notify_url: `${req.protocol}://${req.get('host')}/api/payment-donate-us/notifyurl`, // Replace with your actual webhook URL
+      notify_url: `${req.protocol}://${req.get('host')}/api/payment-donate-us/notifyurl`, 
       return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
       payment_methods: "upi,cc,dc,nb,app", // Payment methods
     },
@@ -1572,9 +1572,11 @@ app.post('/api/create-payment-order', async (req, res) => {
 });
 
 const verifySignature = (body, receivedSignature) => {
-  const hmac = crypto.createHmac('sha256', SECRET_KEY_CASHFREE);
+  const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
   hmac.update(body);  // No need to stringify as body is already raw string from express.raw()
   const calculatedSignature = hmac.digest('base64');
+  console.log( "Recieved signature Is : ",receivedSignature);
+  console.log( "calculatedSignature signature Is : ",calculatedSignature);
   return receivedSignature === calculatedSignature;
 };
 
@@ -1582,6 +1584,10 @@ app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/jso
 
 
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
+
+  console.log("Headers:", req.headers);
+  console.log("Raw Body:", req.body.toString());
+
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
 
   if (!signature) {
