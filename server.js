@@ -1478,85 +1478,8 @@ app.get('/api/connectusdata', async (req,res)=>{
 //CASHFREEPAY
 
 
-// const generatePaymentLink = async (amount, customerEmail, customerPhone, customerId, redirect_url) => {
-//   const data = {
-//     order_amount: amount,
-//     order_currency: 'INR',
-//     customer_details: {
-//       customer_email: customerEmail,
-//       customer_phone: customerPhone,
-//       customer_id: customerId
-//     },
-//     order_meta: {
-//       notify_url:'https://webhook.site/23f5d25a-88aa-4a38-a1de-f7e74a3e7f91',
-//       return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
-//       payment_methods: "upi,cc,dc,nb,app" ,
-      
-//     },
-//     order_id: `ORD_${Date.now()}`, // Generate a unique order ID
-//     // payment_methods: ["upi", "card", "netbanking", "wallet"]// Payment methods (comma-separated)
-//   };
 
 
-
-//   try {
-//     const response = await axios.post(CASHFREE_URL, data, {
-//       headers: {
-//         "accept": "application/json",
-//         "x-api-version": "2023-08-01",
-//         "Content-Type": "application/json",
-//         "x-client-id":APP_ID_CASHFREE,   // Replace with your Cashfree App ID
-//         "x-client-secret":SECRET_KEY_CASHFREE,  
-//       },
-//     });
-    
-
-//     console.log(response.data);
-//     if (response.data && response.data.cf_order_id) {
-      
-//       const paymentLink = `https://sandbox.cashfree.com/pg/orders/${response.data.cf_order_id}/payments`;
-//       return paymentLink;   // Send back the payment link
-//     } else {
-//       throw new Error("Failed to generate payment link");
-//     }
-//  // Return the payment link to the frontend
-//   } catch (error) {
-//     console.error('Error generating payment link:', error.response?.data || error.message);
-//     throw new Error('Failed to generate payment link');
-//   }
-// };
-
-// Route to initiate payment
-// app.post('/api/donate-us', async (req, res) => {
-//   // console.log("Received data:", req.body);
-//   const { amount, customerEmail, customerPhone, redirect_url } = req.body;
-
-//   const customerId = `cust_${Date.now()}`;
-//   if (!amount || !customerEmail || !customerPhone || !redirect_url ) {
-//     return res.status(400).json({ error: "Missing required fields" });
-//   }
-
-//   try {
-//     const paymentLink = await generatePaymentLink(amount, customerEmail, customerPhone, customerId, redirect_url);
-
-//     if (paymentLink) {
-//       res.json({ payment_link: paymentLink });  // Send payment link in response
-//     } else {
-//       res.status(400).json({ error: "Failed to generate payment link" });
-//     }
-//   } catch (error) {
-//     console.error("Error in generating payment link:", error.message);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
-
-
-const verifySignature = (body, receivedSignature) => {
-  const hmac = crypto.createHmac('sha256', SECRET_KEY_CASHFREE);
-  hmac.update(JSON.stringify(body));
-  const calculatedSignature = hmac.digest('base64');
-  return receivedSignature === calculatedSignature;
-};
 
 
 app.post('/api/create-payment-order', async (req, res) => {
@@ -1594,8 +1517,6 @@ app.post('/api/create-payment-order', async (req, res) => {
   
    
 
-
-
    
   const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
@@ -1609,7 +1530,7 @@ app.post('/api/create-payment-order', async (req, res) => {
       customer_id: customerId,        // Corrected: moved inside customer_details
     },
     order_meta: {
-      notify_url: `${req.protocol}://${req.get('host')}/payment-donate-us/notifyurlCheck`, // Replace with your actual webhook URL
+      notify_url: `${req.protocol}://${req.get('host')}/api/payment-donate-us/notifyurl`, // Replace with your actual webhook URL
       return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
       payment_methods: "upi,cc,dc,nb,app", // Payment methods
     },
@@ -1650,17 +1571,34 @@ app.post('/api/create-payment-order', async (req, res) => {
  }
 });
 
+const verifySignature = (body, receivedSignature) => {
+  const hmac = crypto.createHmac('sha256', SECRET_KEY_CASHFREE);
+  hmac.update(body);  // No need to stringify as body is already raw string from express.raw()
+  const calculatedSignature = hmac.digest('base64');
+  return receivedSignature === calculatedSignature;
+};
+
+app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
+
+
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
-  const signature = req.headers['x-signature'];
-  if (!verifySignature(req.body, signature)) {
-   console.log("Invalid Signatute");
+  const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
+
+  if (!signature) {
+    console.log("Signature not found in headers");
+    return res.status(400).send('Signature missing');
+  }
+
+  // Convert buffer to string for verification
+  if (!verifySignature(req.body.toString(), signature)) {
+    console.log("Invalid Signature");
     return res.status(400).send('Invalid Signature');
   }
 
-  console.log("Payment notification received:", req.body);
+  console.log("Payment notification received:", JSON.parse(req.body.toString()));
+
   res.status(200).send('Notification received successfully');
 });
-
 
 
 app.get('/api/payment-status/:orderId', async (req, res) => {
