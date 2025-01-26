@@ -1572,8 +1572,8 @@ app.post('/api/create-payment-order', async (req, res) => {
 });
 
 const verifySignature = (body, receivedSignature) => {
-  const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
   const bodyString = JSON.stringify(body); // No need to stringify as body is already raw string from express.raw()
+  const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
   hmac.update(bodyString); 
   const calculatedSignature = hmac.digest('base64');
   console.log( "Recieved signature Is : ",receivedSignature);
@@ -1587,7 +1587,8 @@ app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/jso
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
 
   console.log("Headers:", req.headers);
-  console.log("Raw Body:", req.body.toString());
+  const rawBody = req.body.toString();
+  console.log("Raw Body:", rawBody);
 
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
 
@@ -1597,7 +1598,7 @@ app.post('/api/payment-donate-us/notifyurl', (req, res) => {
   }
 
   // Convert buffer to string for verification
-  if (!verifySignature(req.body.toString(), signature)) {
+  if (!verifySignature(rawBody, signature)) {
     console.log("Invalid Signature");
     return res.status(400).send('Invalid Signature');
   }
