@@ -1571,24 +1571,36 @@ app.post('/api/create-payment-order', async (req, res) => {
  }
 });
 
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf.toString();
+    },
+  })
+);
+
+// app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
+
 const verifySignature = (body, receivedSignature) => {
-  const bodyString = JSON.stringify(body); // No need to stringify as body is already raw string from express.raw()
+  // const bodyString = JSON.stringify(body); 
+  const bodyString = req.rawBody;
   const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
   hmac.update(bodyString); 
   const calculatedSignature = hmac.digest('base64');
-  // console.log( "Recieved signature Is : ",receivedSignature);
-  // console.log( "calculatedSignature signature Is : ",calculatedSignature);
+  console.log( "Recieved signature Is : ",receivedSignature);
+  console.log( "calculatedSignature signature Is : ",calculatedSignature);
   return receivedSignature === calculatedSignature;
 };
 
-app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
+
+
 
 
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
 
-  // console.log("Headers:", req.headers);
+  console.log("Headers:", req.headers);
   const rawBody = req.body.toString();
-  // console.log("Raw Body:", rawBody);
+  console.log("Raw Body:", rawBody);
 
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
 
