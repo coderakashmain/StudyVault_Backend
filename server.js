@@ -1571,16 +1571,9 @@ app.post('/api/create-payment-order', async (req, res) => {
  }
 });
 
-app.use(
-  express.raw({ type: '*/*' })  // Accept all content types and capture raw body
-);
 
-app.use((req, res, next) => {
-  req.rawBody = req.body.toString();  // Convert raw buffer to string
-  next();
-});
 
-// app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
+
 
 const verifySignature = (bodyString, receivedSignature) => {
   // const bodyString = JSON.stringify(body); 
