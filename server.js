@@ -1581,11 +1581,11 @@ app.use(
 
 // app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
 
-const verifySignature = (body, receivedSignature) => {
+const verifySignature = (rawBody, receivedSignature) => {
   // const bodyString = JSON.stringify(body); 
-  const bodyString = req.rawBody;
+
   const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
-  hmac.update(bodyString); 
+  hmac.update(rawBody); 
   const calculatedSignature = hmac.digest('base64');
   console.log( "Recieved signature Is : ",receivedSignature);
   console.log( "calculatedSignature signature Is : ",calculatedSignature);
@@ -1599,7 +1599,7 @@ const verifySignature = (body, receivedSignature) => {
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
 
   console.log("Headers:", req.headers);
-  const rawBody = req.body.toString();
+  const rawBody = req.rawBody;
   console.log("Raw Body:", rawBody);
 
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
