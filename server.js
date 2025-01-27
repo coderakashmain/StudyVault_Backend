@@ -30,10 +30,10 @@ const  CASHFREE_URL = process.env.CASHFREE_URL;
 
 
 app.use(cors());
-app.use(express.json());
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 
 const transporter = nodemailer.createTransport({
@@ -1575,17 +1575,6 @@ app.post('/api/create-payment-order', async (req, res) => {
 
 
 
-const verifySignature = (bodyString, receivedSignature) => {
-  // const bodyString = JSON.stringify(body); 
-
-
-  const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
-  hmac.update(bodyString); 
-  const calculatedSignature = hmac.digest('base64');
-  console.log( "Recieved signature Is : ",receivedSignature);
-  console.log( "calculatedSignature signature Is : ",calculatedSignature);
-  return receivedSignature === calculatedSignature;
-};
 
 
 
@@ -1620,6 +1609,19 @@ app.post('/api/payment-donate-us/notifyurl',express.raw({ type: 'application/jso
 
   res.status(200).send('Notification received successfully');
 });
+
+const verifySignature = (bodyString, receivedSignature) => {
+  // const bodyString = JSON.stringify(body); 
+
+
+  const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
+  hmac.update(bodyString); 
+  const calculatedSignature = hmac.digest('base64');
+  console.log( "Recieved signature Is : ",receivedSignature);
+  console.log( "calculatedSignature signature Is : ",calculatedSignature);
+  return receivedSignature === calculatedSignature;
+};
+
 
 
 app.get('/api/payment-status/:orderId', async (req, res) => {
