@@ -1571,13 +1571,11 @@ app.post('/api/create-payment-order', async (req, res) => {
  }
 });
 
-app.use(
-  express.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf.toString();
-    },
-  })
-);
+app.use(bodyParser.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}));
 
 // app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
 
