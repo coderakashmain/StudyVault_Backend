@@ -1585,7 +1585,7 @@ app.post('/api/payment-donate-us/notifyurl',express.raw({ type: 'application/jso
   const rawBody = req.body.toString('utf8');
 
   req.rawBody = rawBody; 
-  console.log("Headers:", req.headers);
+  
   console.log("Raw Body:", rawBody || "No raw body received"); 
 
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
