@@ -1584,6 +1584,11 @@ app.use(
 const verifySignature = (rawBody, receivedSignature) => {
   // const bodyString = JSON.stringify(body); 
 
+  if (!rawBody) {
+    console.error("Raw body is undefined, cannot verify signature.");
+    return false;
+  }
+
   const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
   hmac.update(rawBody); 
   const calculatedSignature = hmac.digest('base64');
@@ -1597,10 +1602,10 @@ const verifySignature = (rawBody, receivedSignature) => {
 
 
 app.post('/api/payment-donate-us/notifyurl', (req, res) => {
-
+  
+ 
   console.log("Headers:", req.headers);
-  const rawBody = req.rawBody;
-  console.log("Raw Body:", rawBody);
+  console.log("Raw Body:", req.rawBody || "No raw body received"); 
 
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
 
@@ -1610,9 +1615,13 @@ app.post('/api/payment-donate-us/notifyurl', (req, res) => {
   }
 
   // Convert buffer to string for verification
-  if (!verifySignature(rawBody, signature)) {
+  if (!verifySignature(req.rawBody, signature)) {
     // console.log("Invalid Signature");
     return res.status(400).send('Invalid Signature');
+  }
+  if (!req.rawBody) {
+    console.error("Raw body is missing from the request.");
+    return res.status(400).send('Invalid request, raw body missing');
   }
 
   console.log("Payment notification received:", JSON.parse(req.body.toString()));
