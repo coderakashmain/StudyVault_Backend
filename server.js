@@ -18,6 +18,8 @@ const bcrypt = require('bcryptjs');
 const mime = require('mime');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
+const { OAuth2Client } = require('google-auth-library');
+
 
 
 const app = express();
@@ -27,6 +29,7 @@ const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY
 const APP_ID_CASHFREE = process.env.APP_ID_CASHFREE;
 const  SECRET_KEY_CASHFREE = process.env.SECRET_KEY_CASHFREE;
 const  CASHFREE_URL = process.env.CASHFREE_URL;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 
 app.use(cors());
@@ -1654,6 +1657,82 @@ app.get('/api/payment-status/:orderId', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch payment status' });
   }
 });
+
+//GOOGL AUTH LOGIN 
+
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+app.post("/api/auth/google", async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    // console.log("User Info:", payload);
+    const { name, email, picture, sub } = payload;
+
+    const query = "SELECT * FROM users WHERE google_id = ? OR gmail = ?";
+    try{
+      const [results] = await connectionUserdb.query(query,[sub,email]);
+
+
+      if (results.length > 0) {
+        const user=results[0];
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production", // Set to true in production
+          maxAge: 1000*60*60*24, 
+        });
+
+
+        res.json({ success: true, message: "Login successful", user: results[0] });
+      }else{
+        const loginquery = "INSERT INTO users (google_id, firstname, gmail, picture) VALUES (?, ?, ?, ?)";
+        try{
+          const [results] = await connectionUserdb.query(loginquery,[sub,name,email,picture]);
+
+          const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production", // Set to true in production
+          maxAge: 1000*60*60*24, 
+        });
+
+          res.status(200).json({
+            success: true,
+            message: "Login successful",
+            user: {
+              name: payload.name,
+              email: payload.email,
+              picture: payload.picture,
+            },
+          });
+
+        }catch(err){
+          console.error("Insert error:", err);
+          return res.status(500).json({ message: "Error saving user" });
+        }
+      }
+
+    }catch(err){
+      console.error("Token verification error:", err);
+    res.status(401).json({ message: "Invalid token" });
+    }
+
+ 
+  } catch (error) {
+    console.error("Error verifying token:", error);
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
 
 
 
