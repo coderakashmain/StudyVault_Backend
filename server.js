@@ -1582,16 +1582,12 @@ app.use((req, res, next) => {
 
 // app.use('/api/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }));
 
-const verifySignature = (rawBody, receivedSignature) => {
+const verifySignature = (bodyString, receivedSignature) => {
   // const bodyString = JSON.stringify(body); 
 
-  if (!rawBody) {
-    console.error("Raw body is undefined, cannot verify signature.");
-    return false;
-  }
 
   const hmac = crypto.createHmac('sha256',SECRET_KEY_CASHFREE);
-  hmac.update(rawBody); 
+  hmac.update(bodyString); 
   const calculatedSignature = hmac.digest('base64');
   console.log( "Recieved signature Is : ",receivedSignature);
   console.log( "calculatedSignature signature Is : ",calculatedSignature);
@@ -1602,11 +1598,13 @@ const verifySignature = (rawBody, receivedSignature) => {
 
 
 
-app.post('/api/payment-donate-us/notifyurl', (req, res) => {
+app.post('/api/payment-donate-us/notifyurl',express.raw({ type: 'application/json' }), (req, res) => {
   
- 
+  const rawBody = req.body.toString('utf8');
+
+  req.rawBody = rawBody; 
   console.log("Headers:", req.headers);
-  console.log("Raw Body:", req.rawBody || "No raw body received"); 
+  console.log("Raw Body:", rawBody || "No raw body received"); 
 
   const signature = req.headers['x-webhook-signature'];  // Ensure correct header key
 
@@ -1616,16 +1614,16 @@ app.post('/api/payment-donate-us/notifyurl', (req, res) => {
   }
 
   // Convert buffer to string for verification
-  if (!verifySignature(req.rawBody, signature)) {
-    // console.log("Invalid Signature");
+  if (!verifySignature(rawBody, signature)) {
+    console.log("Invalid Signature");
     return res.status(400).send('Invalid Signature');
   }
-  if (!req.rawBody) {
+  if (!rawBody) {
     console.error("Raw body is missing from the request.");
     return res.status(400).send('Invalid request, raw body missing');
   }
 
-  console.log("Payment notification received:", JSON.parse(req.body.toString()));
+  console.log("Payment notification received:", JSON.parse(rawBody));
 
   res.status(200).send('Notification received successfully');
 });
