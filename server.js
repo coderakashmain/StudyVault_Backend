@@ -1696,6 +1696,7 @@ app.post("/api/auth/google", async (req, res) => {
         const loginquery = "INSERT INTO users (google_id, firstname, gmail, picture) VALUES (?, ?, ?, ?)";
         try{
           const [results] = await connectionUserdb.query(loginquery,[sub,name,email,picture]);
+          const user=results[0];
 
           const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
 
