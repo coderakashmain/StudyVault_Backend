@@ -113,33 +113,59 @@ app.use('/api/', limiter);
 
 
 
-app.post('/api/verify-recaptcha', async (req, res) => {
+// app.post('/api/verify-recaptcha', async (req, res) => {
+//   const { token } = req.body;
+
+//   if (!token) {
+//     return res.status(400).json({ success: false, message: 'No token provided' });
+//   }
+
+//   try {
+//     // Use axios to send the token to Google's reCAPTCHA verification API
+//     const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify`, null, {
+//       params: {
+//         secret: RECAPTCHA_SECRET_KEY,
+//         response: token,
+//       },
+//     });
+
+//     if (response.data.success && response.data.score >= 0.7) {
+      
+//       // If verification is successful and the score is above threshold
+//       return res.json({ success: true });
+//     } else {
+//       // If verification failed or score is too low
+//       return res.json({ success: false, message: 'reCAPTCHA verification failed' });
+//     }
+//   } catch (error) {
+//     console.error('Error during reCAPTCHA verification:', error);
+//     return res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
+
+
+app.post("/api/verify-turnstile", async (req, res) => {
   const { token } = req.body;
 
-  if (!token) {
-    return res.status(400).json({ success: false, message: 'No token provided' });
-  }
+  if (!token) return res.status(400).json({ success: false, error: "No token provided" });
 
   try {
-    // Use axios to send the token to Google's reCAPTCHA verification API
-    const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify`, null, {
-      params: {
-        secret: RECAPTCHA_SECRET_KEY,
+    const response = await axios.post(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      new URLSearchParams({
+        secret: process.env.CLOUDFLARE_SECRET_KEY,
         response: token,
-      },
-    });
+      })
+    );
+    // console.log('done');
 
-    if (response.data.success && response.data.score >= 0.7) {
-      
-      // If verification is successful and the score is above threshold
+    if (response.data.success) {
       return res.json({ success: true });
     } else {
-      // If verification failed or score is too low
-      return res.json({ success: false, message: 'reCAPTCHA verification failed' });
+      return res.status(400).json({ success: false, error: "Invalid captcha" });
     }
   } catch (error) {
-    console.error('Error during reCAPTCHA verification:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
