@@ -1761,6 +1761,78 @@ app.post("/api/auth/google", async (req, res) => {
 });
 
 
+/////Comment section 
+
+
+
+app.get('/api/comments/fetch', async (req, res) => {
+  const query = `
+  SELECT c.id, c.name, c.gender, c.message, c.created_at, 
+    COALESCE(
+      JSON_ARRAYAGG(
+        JSON_OBJECT(
+          'id', r.id,
+          'name', r.name,
+          'gender', r.gender,
+          'gmail', r.gmail,
+          'message', r.message,
+          'created_at', r.created_at
+        )
+      ), JSON_ARRAY()
+    ) AS replies
+  FROM comments c
+  LEFT JOIN replies r ON c.id = r.comment_id
+  GROUP BY c.id
+`;
+
+
+  try {
+    const [results] = await connectionUserdb.query(query);
+
+    res.json(results.map(comment => ({
+      ...comment,
+      replies: comment.replies || []  // No need for fallback as IFNULL handles it
+    })));
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+app.post('/api/comments', async (req, res) => {
+  const { name, gmail, gender, message } = req.body;
+  const query = 'INSERT INTO comments (name, gmail, gender, message) VALUES (?, ?, ?, ?)';
+
+  try {
+    await connectionUserdb.query(query, [name, gmail, gender, message]);
+    res.sendStatus(201);
+  } catch (err) {
+    console.error('Error posting comment:', err);
+    res.status(500).json({ error: 'Failed to post comment' });
+  }
+});
+
+app.post('/api/comments/:id/replies', async (req, res) => {
+  const { id } = req.params;
+  const { name, gmail, gender, message } = req.body;
+
+ 
+  const query = `
+    INSERT INTO replies (comment_id, name, gmail, gender, message)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  try {
+    await connectionUserdb.query(query, [id, name, gmail, gender, message]);
+    res.sendStatus(201);
+  } catch (err) {
+    console.error('Error posting reply:', err);
+    res.status(500).json({ error: 'Failed to post reply' });
+  }
+});
+
+
+
 
 
 /////////////
