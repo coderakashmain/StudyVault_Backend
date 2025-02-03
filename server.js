@@ -1765,7 +1765,7 @@ app.post("/api/auth/google", async (req, res) => {
 
 
 
-app.get('/api/comments/fetch', async (req, res) => {
+app.get('/api/comments', async (req, res) => {
   const query = `
   SELECT c.id, c.name, c.gender, c.message, c.created_at, 
     COALESCE(
