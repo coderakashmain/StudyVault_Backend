@@ -1670,7 +1670,49 @@ app.get('/api/payment-status/:orderId', async (req, res) => {
 
 
 
+
     if (response.data && response.data.order_status) {
+
+     
+      if(response.data.order_status === "PAID"){
+        const mailOptions = {
+          to: response.data.customer_email,
+         
+          from: process.env.EMAIL_USER,
+          subject: "StudyVault Payment verificaiton Message .",
+          html: `
+           <html>
+  <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
+    <div style="max-width: 600px; margin: auto; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+      <h1 style="text-align: center; color: #4CAF50;">🎉 Payment Successful!</h1>
+
+      <p style="text-align: center; font-size: 1.1rem; color: #555;">Thank you for your payment. Here are the details:</p>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+
+      <h2 style="font-size: 1.3rem;">Order Id  : <span style="font-size: 1.1rem; font-weight: 600; color: #333;">${orderId}</span></h2>
+      <h2 style="font-size: 1.3rem;">Payment Status : <span style="font-size: 1.1rem; font-weight: 600; color: #333;">PAID</span></h2>
+      <h2 style="font-size: 1.3rem;">Order amount : <span style="font-size: 1.1rem; font-weight: 500; color: #666;">${response.data.order_amount}</span></h2>
+
+      <div style="background-color: #f1f1f1; padding: 15px; border-radius: 6px; margin: 20px 0;">
+        <p style="font-size: 1rem; color: #444;">Your payment has been successfully processed. Thank you for supporting Us. If you have any questions, feel free to reach out to our support team.</p>
+      </div>
+
+      <p style="font-size: 0.9rem; color: #777;">This message is related to your payment through StudyVault.</p>
+
+      <h4 style="margin-top: 30px; color: #333;">Best regards,</h4>
+      <h4 style="color: #4CAF50;">The StudyVault Team</h4>
+    </div>
+  </body>
+</html>
+          `,
+        };
+      
+        // Send OTP email
+        await transporter.sendMail(mailOptions);
+      }
+
+
       res.status(200).json({
         orderId: response.data.order_id,
         status: response.data.order_status,
@@ -1805,6 +1847,30 @@ app.post('/api/comments', async (req, res) => {
 
   try {
     await connectionUserdb.query(query, [name, gmail, gender, message]);
+    const mailOptions = {
+      to: process.env.MY_GMAIL,
+      from: process.env.EMAIL_USER,
+      subject: "Someone Comment on Studyvault",
+      html: `
+        <html>
+          <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
+              <h1 >Name is :${name} <br/> Gmail is : ${gmail} <br/>  Gender :${gender} </h1>
+        
+              <h2 style=" margin: auto; font-size: 1.5rem;">This is the messsage : ${message}</h2>
+
+              
+              <h4>The StudyVault Team</h4>
+            </div>
+          </body>
+        </html>
+      `,
+    };
+
+    // Send OTP email
+    await transporter.sendMail(mailOptions);
+
+
     res.sendStatus(201);
   } catch (err) {
     console.error('Error posting comment:', err);
@@ -1824,6 +1890,30 @@ app.post('/api/comments/:id/replies', async (req, res) => {
 
   try {
     await connectionUserdb.query(query, [id, name, gmail, gender, message]);
+
+    const mailOptions = {
+      to: process.env.MY_GMAIL,
+      from: process.env.EMAIL_USER,
+      subject: `Someone Replies on Studyvault of this id : ${id}`,
+      html: `
+        <html>
+          <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
+              <h1 >Name is :${name} <br/> Gmail is : ${gmail} <br/>  Gender :${gender} </h1>
+        
+              <h2 style=" margin: auto; font-size: 1.5rem;">This is the Reply messsage : ${message}</h2>
+
+              
+              <h4>The StudyVault Team</h4>
+            </div>
+          </body>
+        </html>
+      `,
+    };
+
+    // Send OTP email
+    await transporter.sendMail(mailOptions);
+    
     res.sendStatus(201);
   } catch (err) {
     console.error('Error posting reply:', err);
