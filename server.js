@@ -1675,8 +1675,11 @@ app.get('/api/payment-status/:orderId', async (req, res) => {
 
      
       if(response.data.order_status === "PAID"){
+        const usermail = response.data.customer_details.customer_email;
+       
+
         const mailOptions = {
-          to: response.data.customer_email,
+          to: usermail,
          
           from: process.env.EMAIL_USER,
           subject: "StudyVault Payment verificaiton Message .",
