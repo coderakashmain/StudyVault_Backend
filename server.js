@@ -1810,7 +1810,7 @@ app.post("/api/auth/google", async (req, res) => {
 
 
 
-app.get('/api/comments', async (req, res) => {
+app.get('/api/comments/fetch', async (req, res) => {
   const query = `
   SELECT c.id, c.name, c.gender, c.message, c.created_at, 
     COALESCE(
@@ -1833,6 +1833,7 @@ app.get('/api/comments', async (req, res) => {
 
   try {
     const [results] = await connectionUserdb.query(query);
+    console.log('Comment fetch');
 
     res.json(results.map(comment => ({
       ...comment,
@@ -1873,7 +1874,7 @@ app.post('/api/comments', async (req, res) => {
     // Send OTP email
     await transporter.sendMail(mailOptions);
 
-
+    console.log('Comment send');
     res.sendStatus(201);
   } catch (err) {
     console.error('Error posting comment:', err);
