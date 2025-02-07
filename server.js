@@ -636,6 +636,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).send('Invalid user token');
     }
     req.user = user;
+    // console.log(req.user);
     next();
   });
 }
@@ -706,14 +707,14 @@ app.get("/api/Profile", authenticateToken, async (req, res) => {
 }
 });
 
-app.get("/api", authenticateToken,async (req, res) => {
+app.get("/api/usercheck", authenticateToken,async (req, res) => {
   const query = "SELECT * FROM users WHERE id = ?";
   // console.log('dsfd');
 
   if (!req.user || !req.user.id) {
     return res.status(400).json({ error: "Invalid user information in token" });
   }
-
+  // console.log("user id : " ,req.user);
   try{
     const [results] = await  connectionUserdb.query(query, [req.user.id]);
 
@@ -1159,7 +1160,7 @@ async function deleteTempFiles() {
     for (const file of files) {
       const filePath = path.join(uploadFolderPath, file);
       await fs.promises.unlink(filePath); // Delete the file
-      console.log("Deleted file:", filePath);
+      // console.log("Deleted file:", filePath);
     }
   } catch (error) {
     console.error("Error deleting files in uploads folder:", error);
@@ -1417,7 +1418,7 @@ app.get("/api/adminPage", async (req, res) => {
   if (!accestoken) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  
+  // console.log( "accesstoken is : ",accestoken);
   jwt.verify(accestoken,JWT_SECRET, (err, user) => {
     if (err) {
       if (err.name === 'TokenExpiredError') {
@@ -1428,6 +1429,8 @@ app.get("/api/adminPage", async (req, res) => {
     }
     req.userid = user;
   });
+
+  // console.log( "admin id : ",req.userid);
   const query = "SELECT * FROM admin_login WHERE userid = ?";
   
   try {
