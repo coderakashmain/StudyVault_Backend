@@ -974,7 +974,7 @@ app.post("/api/LogIn/ForgatePw", async (req, res) => {
         console.error("Email sending error:", err);
         return res.status(500).json({ error: "Email sending error" });
       }
-      console.log("Email sent:", info.response);
+      // console.log("Email sent:", info.response);
       return res.status(200).json("OTP sent");
     });
   } catch (err) {
@@ -1833,7 +1833,7 @@ app.get('/api/comments/fetch', async (req, res) => {
 
   try {
     const [results] = await connectionUserdb.query(query);
-    console.log('Comment fetch');
+    // console.log('Comment fetch');
 
     res.json(results.map(comment => ({
       ...comment,
@@ -1874,7 +1874,7 @@ app.post('/api/comments', async (req, res) => {
     // Send OTP email
     await transporter.sendMail(mailOptions);
 
-    console.log('Comment send');
+    // console.log('Comment send');
     res.sendStatus(201);
   } catch (err) {
     console.error('Error posting comment:', err);
