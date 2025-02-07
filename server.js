@@ -734,16 +734,13 @@ app.get("/api/usercheck", authenticateToken,async (req, res) => {
 
 app.post("/api/logOut", (req, res) => {
   let cookieOptions = {
-    httpOnly: true,                        // Protects against XSS
-    secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
-    sameSite: "Strict",                    // Only sent in first-party contexts
-    path: "/"                              // Applies to the entire site
+    httpOnly: true,                        
+    secure: process.env.NODE_ENV === "production", 
+    sameSite: "Strict",
+    path: "/"                             
   };
 
-  // Only set the domain in production, where it matches your live domain.
-  if (process.env.NODE_ENV === "production") {
-    cookieOptions.domain = "www.studyvault.online"; // or "www.studyvault.online", depending on your setup
-  }
+
 
   res.clearCookie("token", cookieOptions);
 
@@ -1463,10 +1460,7 @@ app.post("/api/Admin/logout", (req, res) => {
       path: "/"                              // Applies to the entire site
     };
   
-    // Only set the domain in production, where it matches your live domain.
-    if (process.env.NODE_ENV === "production") {
-      cookieOptions.domain = ".studyvault.online"; // or "www.studyvault.online", depending on your setup
-    }
+    
   
     res.clearCookie("accestoken", cookieOptions);
 
