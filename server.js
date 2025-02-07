@@ -732,12 +732,19 @@ app.get("/api", authenticateToken,async (req, res) => {
 });
 
 app.post("/api/logOut", (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,    // Makes the cookie inaccessible to JavaScript (prevents XSS attacks)
-    secure: process.env.NODE_ENV === "production", // Ensures the cookie is only sent over HTTPS in production
-    sameSite: "Strict", // Limits the cookie to be sent in first-party contexts
-    path: "/",         // Ensures the cookie is cleared for the entire app
-  });
+  let cookieOptions = {
+    httpOnly: true,                        // Protects against XSS
+    secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
+    sameSite: "Strict",                    // Only sent in first-party contexts
+    path: "/"                              // Applies to the entire site
+  };
+
+  // Only set the domain in production, where it matches your live domain.
+  if (process.env.NODE_ENV === "production") {
+    cookieOptions.domain = ".studyvault.online"; // or "www.studyvault.online", depending on your setup
+  }
+
+  res.clearCookie("token", cookieOptions);
 
   res.status(200).json({ success: true });
 });
@@ -1446,13 +1453,19 @@ app.get("/api/adminPage", async (req, res) => {
 
 app.post("/api/Admin/logout", (req, res) => {
   try {
-    // Clear the refresh token cookie
-    res.clearCookie("accestoken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
-   
+    let cookieOptions = {
+      httpOnly: true,                        // Protects against XSS
+      secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
+      sameSite: "Strict",                    // Only sent in first-party contexts
+      path: "/"                              // Applies to the entire site
+    };
+  
+    // Only set the domain in production, where it matches your live domain.
+    if (process.env.NODE_ENV === "production") {
+      cookieOptions.domain = ".studyvault.online"; // or "www.studyvault.online", depending on your setup
+    }
+  
+    res.clearCookie("accestoken", cookieOptions);
 
     res.status(200).json({ message: "Successfully logged out" });
   } catch (err) {
