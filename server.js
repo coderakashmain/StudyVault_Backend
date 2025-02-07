@@ -742,7 +742,7 @@ app.post("/api/logOut", (req, res) => {
 
   // Only set the domain in production, where it matches your live domain.
   if (process.env.NODE_ENV === "production") {
-    cookieOptions.domain = ".studyvault.online"; // or "www.studyvault.online", depending on your setup
+    cookieOptions.domain = "www.studyvault.online"; // or "www.studyvault.online", depending on your setup
   }
 
   res.clearCookie("token", cookieOptions);
