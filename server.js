@@ -600,6 +600,8 @@ app.post("/api/LogIn", async (req, res) => {
         res.cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
+          sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+          domain: process.env.NODE_ENV === "production" ? ".studyvault.online" : undefined,
           maxAge: 1000*60*60*24, 
         });
   
@@ -1741,16 +1743,28 @@ app.get('/api/payment-status/:orderId', async (req, res) => {
 
 //GOOGL AUTH LOGIN 
 
+
+
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 app.post("/api/auth/google", async (req, res) => {
   const { token } = req.body;
+
+
+  if (!token) {
+    return res.status(400).json({ message: "No token provided" });
+  }
+
 
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: GOOGLE_CLIENT_ID,
     });
+
+    if (!ticket) {
+      return res.status(401).json({ message: "Invalid Google token" });
+    }
 
     const payload = ticket.getPayload();
     // console.log("User Info:", payload);
@@ -1768,6 +1782,8 @@ app.post("/api/auth/google", async (req, res) => {
         res.cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
+          sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+           domain: process.env.NODE_ENV === "production" ? ".studyvault.online" : undefined,
           maxAge: 1000*60*60*24, 
         });
 
@@ -1784,6 +1800,8 @@ app.post("/api/auth/google", async (req, res) => {
         res.cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
+          sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+           domain: process.env.NODE_ENV === "production" ? ".studyvault.online" : undefined,
           maxAge: 1000*60*60*24, 
         });
 
