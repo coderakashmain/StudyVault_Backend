@@ -112,7 +112,12 @@ app.use('/api/', limiter);
 
 
 
-
+app.use(session({
+  secret: process.env.SESSION_SECRET,   // Change this to a secure key
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }    // Set to `true` if using HTTPS
+}));
 
 
 
