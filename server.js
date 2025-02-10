@@ -129,7 +129,7 @@ app.post("/api/verify-turnstile", async (req, res) => {
         response: token,
       })
     );
-    console.log("CAPTCHA response:", response.data);
+ 
 
     if (response.data.success) {
       req.session.isVerified = true; 
