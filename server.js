@@ -133,11 +133,14 @@ app.post("/api/verify-turnstile", async (req, res) => {
 
     if (response.data.success) {
       req.session.isVerified = true; 
+      console.log( req.session.isVerifie);
       return res.json({ success: true });
     } else {
+      console.error('Invalid captha');
       return res.status(400).json({ success: false, error: "Invalid captcha" });
     }
   } catch (error) {
+    console.error("something error",error)
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
