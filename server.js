@@ -551,6 +551,7 @@ app.post("/api/LogIn", async (req, res) => {
   const { gmail, password } = req.body;
   
   if (!req.session.isVerified && process.env.NODE_ENV === "production") {
+    console.log('CAPTCHA verification required')
     return res.status(403).json({ success: false, message: "CAPTCHA verification required" });
   }
   
