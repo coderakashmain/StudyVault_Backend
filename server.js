@@ -20,6 +20,7 @@ const axios = require('axios');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const session = require("express-session");
+const otpStorage = new Map();
 
 
 
@@ -139,7 +140,7 @@ app.post("/api/verify-turnstile", async (req, res) => {
 
     if (response.data.success) {
       req.session.isVerified = true; 
-      console.log( req.session.isVerifie);
+       
       return res.json({ success: true });
     } else {
       console.error('Invalid captha');
@@ -1348,6 +1349,8 @@ app.post("/api/Admin/syllabusUpload", upload.single("file"), async (req, res) =>
 
 
 
+
+
 app.get("/api/admin/fetchData", async (req, res) => {
   let query = "SELECT * FROM papers ";
   try{
@@ -1360,6 +1363,123 @@ app.get("/api/admin/fetchData", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+
+
+
+const deleteFileFromDrive = async (fileId, accessToken) => {
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: "DELETE",
+      headers: {
+          Authorization: `Bearer ${accessToken}`,
+      },
+  });
+
+  if (response.ok) {
+      console.log("File deleted successfully");
+  } else {
+      console.log("Failed to delete file:", await response.json());
+  }
+};
+
+app.post("/api/admin/deletepdf", async (req, res) => {
+  const { id, urlpdfid } = req.body;
+
+  if (!urlpdfid) {
+    console.error("Invalid Google Drive URL");
+    return res.status(400).json({ error: "Invalid Google Drive URL" });
+  }
+
+  try {
+    const query = "DELETE FROM papers WHERE id = ?";
+    const [results] = await connectionPaperdb.query(query, [id]);
+
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ error: "Record not found in database" });
+    }
+
+    try {
+      // Check if file exists before deleting
+      await drive.files.get({ fileId: urlpdfid });
+  
+      // If file exists, delete it
+      await drive.files.delete({ fileId: urlpdfid });
+      
+  } catch (error) {
+      if (error.code === 404) {
+          console.log(`File with ID ${urlpdfid} not found, skipping deletion.`);
+      } else {
+          console.error("Error deleting file:", error.message);
+          return res.status(500).json({ error: "Failed to delete file from Google Drive" });
+      }
+  }
+  res.status(200).json({ message: "Successfully Deleted" });
+
+
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+app.post("/api/admin/request-delete", async (req, res) => {
+  
+  const otp = Math.floor(100000 + Math.random() * 900000);
+
+  const mailOptions = {
+    to:  process.env.EMAIL_USER,
+    from:  process.env.EMAIL_USER,
+    subject: "Admin delete section verification",
+    html: `
+       <html>
+          <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
+              <h1 style="text-align: center;">Welcome to StudyVault</h1>
+              <p style="text-align: center; font-size: 1.1rem">Hi</p>
+              <p>You requested to for verify for deletation. Please use the following One-Time Password (OTP) to get verified </p>
+              <h2 style="text-align: center; margin: auto; font-size: 2.4rem;">${otp}</h2>
+           
+              <h4>Best regards,</h4>
+              <h4>The StudyVault Team</h4>
+            </div>
+          </body>
+        </html>
+    `,
+  };
+
+  // Send OTP email
+  await transporter.sendMail(mailOptions);
+
+  otpStorage.set(process.env.EMAIL_USER, otp); 
+
+  
+
+
+  res.json({ message: "OTP sent successfully" });
+});
+
+
+app.post("/api/admin/delete/verify-otp", (req, res) => {
+  const { otpvalue } = req.body;
+  const email = process.env.EMAIL_USER;
+
+ 
+  if (String(otpStorage.get(email)) === String(otpvalue)) { // Ensure both are strings
+      otpStorage.delete(email); // Remove OTP after verification
+
+      // Generate JWT valid for 15 minutes
+      const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "15m" });
+
+      res.json({ token });
+  } else {
+      res.status(401).json({ error: "Invalid OTP" });
+  }
+});
+
+
+
+
+
 
 //Admin LogIN
 
