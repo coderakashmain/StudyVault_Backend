@@ -1347,6 +1347,85 @@ app.post("/api/Admin/syllabusUpload", upload.single("file"), async (req, res) =>
 });
 
 
+app.post("/api/Admin/noteUpload", upload.single("file"), async (req, res) => {
+  const { subjectName, noteFullName,unit } = req.body;
+  
+  
+
+  
+
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).send("No file uploaded");
+    }
+
+
+  
+
+    let folderId = await findFolderupload("Notes");
+    if (!folderId) {
+      folderId = await createDriveFolder("Notes"); 
+    }
+
+   
+    const fileId = await uploadFileToDrive(file.filename, folderId);
+    if (!fileId) {
+      return res.status(300).send("Failed to upload file to Google Drive");
+    }
+
+    
+    const checkQuery = "SELECT * FROM notes WHERE notefullname = ?";
+    const [checkResults] = await connectionPaperdb.query(checkQuery, [noteFullName]);
+
+    if (checkResults.length > 0) {
+     
+      const duplicatFile = path.join(__dirname, "uploads", file.filename);
+      fs.unlink(duplicatFile, (err) => {
+        if (err) console.error("Error deleting temp file:", err);
+      });
+
+      return res.status(400).json({
+        message: `A file with the title "${noteFullName}" already exists in the database.`,
+      });
+    }
+
+  
+    const filepath = `https://drive.google.com/file/d/${fileId}/view`;
+
+ 
+    const insertQuery =
+      "INSERT INTO notes (subjectname, notefullname, unit,url) VALUES (?, ?, ?, ?)";
+
+    await connectionPaperdb.query(insertQuery, [
+      subjectName,
+      noteFullName,
+      unit,
+      filepath,
+    ]);
+
+    // Clean up the temporary file
+    const tempFilePath = path.join(__dirname, "uploads", file.filename);
+    fs.unlink(tempFilePath, (err) => {
+      if (err) console.error("Error deleting temp file:", err);
+    });
+
+    // const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
+    // fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
+    //   // if (err) console.error("Error deleting temp folder:", err);
+    // });
+
+    res.status(200).send({
+      message: "File uploaded successfully to Google Drive",
+      fileId: fileId,
+    });
+  } catch (error) {
+    console.error("Error processing request:", error);
+    res.status(500).send("An error occurred while processing the request");
+  }
+});
+
+
 
 
 
@@ -1364,23 +1443,79 @@ app.get("/api/admin/fetchData", async (req, res) => {
   }
 });
 
+app.get("/api/notefetch", async (req, res) => {
+  let query = "SELECT * FROM notes ";
+  try{
+    const [results] = await connectionPaperdb.query(query); 
+    
+    res.status(200).json(results);
 
-
-
-const deleteFileFromDrive = async (fileId, accessToken) => {
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
-      method: "DELETE",
-      headers: {
-          Authorization: `Bearer ${accessToken}`,
-      },
-  });
-
-  if (response.ok) {
-      console.log("File deleted successfully");
-  } else {
-      console.log("Failed to delete file:", await response.json());
+  }catch(err){
+    console.error("Error fetching papers:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
-};
+});
+app.post("/api/noteClickCount", async (req, res) => {
+  const {id} = req.body;
+ 
+  try{
+    await connectionPaperdb.query('UPDATE notes SET totalClicks = totalClicks + 1 WHERE id = ?', [id]);
+    const [results] = await db.query('SELECT totalClicks FROM notes WHERE id = ?', [id]);
+    
+    res.json({ count: results[0].totalClicks });
+
+  }catch(err){
+    // console.error("Database error:", error);
+    res.status(500).send("Error updating click count");
+  }
+});
+app.post("/api/notedonwloadcount",authenticateToken, async (req, res) => {
+  const {id,filename,unit,fileUrl} = req.body;
+
+  const userid=req.user.id;
+ 
+ 
+  try {
+
+    await connectionPaperdb.query(
+      'UPDATE notes SET totaldownload = totaldownload + 1 WHERE id = ?',
+      [id]
+    );
+
+
+    await connectionUserdb.query(
+      `
+      INSERT INTO notedownloads (user_id, note_id, note_full_name, note_unit, download_url, downloaded_at)
+      VALUES (?, ?, ?, ?, ?, NOW())
+      `,
+      [userid, id, filename, unit, fileUrl]
+    );
+
+
+    const [results] = await connectionPaperdb.query(
+      'SELECT totaldownload FROM notes WHERE id = ?',
+      [id]
+    );
+
+
+    res.status(200).json({
+      message: 'Download recorded successfully',
+      count: results[0]?.totaldownload || 0
+    });
+
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({
+      message: 'Error updating download count or recording download'
+    });
+  }
+
+});
+
+
+
+
+
 
 app.post("/api/admin/deletepdf", async (req, res) => {
   const { id, urlpdfid } = req.body;
