@@ -33,12 +33,16 @@ const  SECRET_KEY_CASHFREE = process.env.SECRET_KEY_CASHFREE;
 const  CASHFREE_URL = process.env.CASHFREE_URL;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
+const server = require('http').createServer(app);
+
+server.setTimeout(300000);
 
 app.use(cors());
-app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(bodyParser.json());
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
 
 
 const transporter = nodemailer.createTransport({
@@ -110,10 +114,6 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
-
-app.use('/api/Admin/noteUpload', (req, res, next) => {
-  next(); 
-});
 
 
 
