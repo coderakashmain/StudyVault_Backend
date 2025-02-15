@@ -1194,12 +1194,14 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
     const folderId = await findNestedFolder(folderPath);
 
     if (!folderId) {
+      console.log( `Folder "${folderPath}" does not exist.`);
       return res.status(401).json({ message: `Folder "${folderPath}" does not exist.` });
     }
 
     // Upload the file to Google Drive
     const fileId = await uploadFileToDrive(file.filename, folderId);
     if (!fileId) {
+      console.log('Failed to upload file to Google Drive')
       return res.status(300).send("Failed to upload file to Google Drive");
     }
 
@@ -1244,10 +1246,7 @@ app.post("/api/Admin/upload", upload.single("file"), async (req, res) => {
       if (err) console.error("Error deleting temp file:", err);
     });
 
-    // const tmpDir = path.join(__dirname, "uploads/.tmp.driveupload");
-    // fs.rm(tmpDir, { recursive: true, force: true }, (err) => {
-    //   // if (err) console.error("Error deleting temp folder:", err);
-    // });
+    console.log('File uploaded successfully to Google Drive');
 
     res.status(200).send({
       message: "File uploaded successfully to Google Drive",
