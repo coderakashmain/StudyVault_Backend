@@ -32,6 +32,7 @@ const APP_ID_CASHFREE = process.env.APP_ID_CASHFREE;
 const  SECRET_KEY_CASHFREE = process.env.SECRET_KEY_CASHFREE;
 const  CASHFREE_URL = process.env.CASHFREE_URL;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const server = require('http').createServer(app);
 
 
 app.use(cors());
@@ -40,6 +41,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+server.setTimeout(300000);
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
