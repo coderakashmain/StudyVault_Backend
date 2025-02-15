@@ -1376,8 +1376,8 @@ app.post("/api/Admin/noteUpload", upload.single("file"), async (req, res) => {
     }
 
     
-    const checkQuery = "SELECT * FROM notes WHERE notefullname = ?";
-    const [checkResults] = await connectionPaperdb.query(checkQuery, [noteFullName]);
+    const checkQuery = "SELECT * FROM notes WHERE notefullname = ? AND  unit = ?";
+    const [checkResults] = await connectionPaperdb.query(checkQuery, [noteFullName,unit]);
 
     if (checkResults.length > 0) {
      
