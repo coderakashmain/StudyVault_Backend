@@ -21,10 +21,13 @@ const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const session = require("express-session");
 const otpStorage = new Map();
+const http = require('http');
+
 
 
 
 const app = express();
+const server = http.createServer(app);
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET=process.env.JWT_REFRESH_SECRET;
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY
@@ -33,7 +36,7 @@ const  SECRET_KEY_CASHFREE = process.env.SECRET_KEY_CASHFREE;
 const  CASHFREE_URL = process.env.CASHFREE_URL;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
-const server = require('http').createServer(app);
+
 
 server.setTimeout(300000);
 
