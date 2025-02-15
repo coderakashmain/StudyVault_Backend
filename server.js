@@ -111,9 +111,9 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
-// app.use('/api/Admin/noteUpload', (req, res, next) => {
-//   next(); 
-// });
+app.use('/api/Admin/noteUpload', (req, res, next) => {
+  next(); 
+});
 
 
 
