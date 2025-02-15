@@ -21,13 +21,10 @@ const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
 const session = require("express-session");
 const otpStorage = new Map();
-const http = require('http');
-
 
 
 
 const app = express();
-const server = http.createServer(app);
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET=process.env.JWT_REFRESH_SECRET;
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY
@@ -37,15 +34,11 @@ const  CASHFREE_URL = process.env.CASHFREE_URL;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 
-
-server.setTimeout(300000);
-
 app.use(cors());
-app.use(cookieParser());
 app.use(bodyParser.json());
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ limit: '100mb', extended: true }));
-
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 
 const transporter = nodemailer.createTransport({
@@ -109,7 +102,7 @@ app.set('trust proxy', 1);
 
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 500, // limit each IP to 100 requests per minute
+  max: 100, // limit each IP to 100 requests per minute
   handler: (req, res) => {
     console.log(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).send("Too many requests, please try again later.");
