@@ -2196,6 +2196,24 @@ app.post('/api/comments/:id/replies', async (req, res) => {
 
 
 
+app.get("/api/shorten", async (req, res) => {
+  try {
+      const { url } = req.query;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+
+      const response = await axios.get(`https://shrinkearn.com/api`, {
+          params: { api: process.env.SHRINKEARN_API_KEY, url },
+      });
+
+      res.json(response.data); // Return the short link
+  } catch (error) {
+      console.error("ShrinkEarn Error:", error);
+      res.status(500).json({ error: "Failed to shorten URL" });
+  }
+});
+
+
+
 
 
 /////////////
