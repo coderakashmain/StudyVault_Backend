@@ -1110,7 +1110,7 @@ async function findFolder(folderName, parentFolderId = "root") {
       return null;
     }
 
-    console.log(`Folder "${folderName}" found with ID: ${folder.id}`);
+  
     return folder.id; // Return the folder ID
   } catch (error) {
     console.error("Error finding folder on Google Drive:", error);
@@ -1620,6 +1620,7 @@ app.post("/api/admin/delete/verify-otp", (req, res) => {
 //Admin LogIN
 
 app.post("/api/Admin/AdminLogIn", async (req, res) => {
+
     const { userid, password } = req.body;
   
    
