@@ -821,7 +821,7 @@ app.get("/api/Filter", async (req, res) => {
 
     // Add toDate filter if provided
     if (req.query.toDate) {
-      query += " AND years < ?";
+      query += " AND years <= ?";
       params.push(req.query.toDate);
     }
 
