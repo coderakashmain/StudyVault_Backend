@@ -589,7 +589,7 @@ app.post("/api/LogIn", async (req, res) => {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
           sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-          domain: process.env.NODE_ENV === "production" ? ".studyvault.online" : undefined,
+          domain: process.env.NODE_ENV === "production" ? ".studyvault.space" : undefined,
           maxAge: 1000*60*60*24, 
         });
         req.session.isVerified = false;
@@ -2025,7 +2025,7 @@ app.post("/api/auth/google", async (req, res) => {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
           sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-           domain: process.env.NODE_ENV === "production" ? ".studyvault.online" : undefined,
+           domain: process.env.NODE_ENV === "production" ? ".studyvault.space" : undefined,
           maxAge: 1000*60*60*24, 
         });
 
@@ -2043,7 +2043,7 @@ app.post("/api/auth/google", async (req, res) => {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Set to true in production
           sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-           domain: process.env.NODE_ENV === "production" ? ".studyvault.online" : undefined,
+           domain: process.env.NODE_ENV === "production" ? ".studyvault.space" : undefined,
           maxAge: 1000*60*60*24, 
         });
 
@@ -2066,7 +2066,7 @@ app.post("/api/auth/google", async (req, res) => {
     }catch(err){
       console.error("Token verification error:", err);
     res.status(401).json({ message: "Invalid token" });
-    }
+    }   
 
  
   } catch (error) {
@@ -2114,6 +2114,9 @@ app.get('/api/comments/fetch', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch comments' });
   }
 });
+
+
+
 
 app.post('/api/comments', async (req, res) => {
   const { name, gmail, gender, message } = req.body;
