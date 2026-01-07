@@ -19,5 +19,5 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |   
-            cd /var/www/html/StudyVault
+            cd /var/www/html
             ./deploy.sh
