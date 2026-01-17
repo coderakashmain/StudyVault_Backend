@@ -11,15 +11,7 @@ const connectionUserdb = mysql.createPool({
     queueLimit: 0,
 });
 
-const connectionPaperdb = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: 'papersdb',
-    waitForConnections: true,
-    connectionLimit: 20,
-    queueLimit: 0,
-});
+
 
 /**
  * Function to handle reconnections on connection error
@@ -46,10 +38,7 @@ const handleReconnection = (pool, database) => {
 
 // Attach reconnection handlers
 handleReconnection(connectionUserdb, 'userdb');
-handleReconnection(connectionPaperdb, 'papersdb');
 
-module.exports = {
-    connectionUserdb,
-    connectionPaperdb,
-};
+module.exports = connectionUserdb;
+
 
