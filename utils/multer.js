@@ -25,7 +25,7 @@ const storage = multer.diskStorage({
     const examType = sem === "1" ? "sem" : "midsem";
 
     const safeName =
-      `${departmentName} ${departmentYear}_${semester}_${title}_${examType}_${educationLevel}_${years}`.replace(/[^a-zA-Z0-9-_ ]/g, "_");
+      `${departmentName} ${departmentYear}_${semester}_${title}_${examType}_${educationLevel}_${years}`.replace(/[^a-zA-Z0-9-_. ]/g, "_");;
     cb(null, `${safeName}.pdf`);
   },
 });

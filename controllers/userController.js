@@ -119,7 +119,7 @@ exports.getTopContributors = asyncHandler(async (req, res) => {
       ud.upload_user_name AS full_name,
 
       -- avatar from users table
-      u.picture AS avatar_url,
+      u.avatar_url AS avatar_url,
 
       -- safely masked roll number
       CASE
