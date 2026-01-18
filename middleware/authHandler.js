@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const asyncHandler = require("./asyncHandler");
 const { success, failure } = require("../utils/response"); 
+const connectionUserdb = require("../config/db");
 
 const verifyAuth = asyncHandler(async (req, res, next) => {
   let token = null;
@@ -43,8 +44,10 @@ const loginCheck = asyncHandler(async (req, res, next) => {
   }
   try{
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
- 
-    return success(res, "User is logged in",{token,avatar_url : decoded.avatar_url,id:decoded.id});
+    const query = "SELECT avatar_url FROM users WHERE id = ?";
+    const [user] = await connectionUserdb.query(query,[decoded.id]);
+   
+    return success(res, "User is logged in",{token,avatar_url : user[0].avatar_url,id:decoded.id});
   }catch(err){
     return failure(res, "Unauthorized: Invalid or expired token", 401);
   }
