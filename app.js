@@ -75,17 +75,9 @@ async function getUserData() {
     }
 }
 
-// 
-async function getPapersData() {
-    try {
-      console.log("Papersdb Database is connected");
-    } catch (err) {
-        console.error('Error fetching papers data:', err);
-    }
-}
+
 
 getUserData();
-getPapersData();
 
 
 
