@@ -40,6 +40,10 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(errorHandler);
+app.use(cors({
+  origin: "https://studyvault.space",
+  credentials: true
+}));
 
 server.setTimeout(300000);
 
