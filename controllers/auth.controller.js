@@ -148,8 +148,7 @@ exports.login = async (req, res) => {
         res.cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", 
-          sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-          domain: process.env.NODE_ENV === "production" ? ".studyvault.space" : undefined,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
           maxAge: 1000 * 60 * 60 * 24, 
         });
         req.session.isVerified = false;
@@ -170,7 +169,7 @@ exports.logout = (req, res) => {
   let cookieOptions = {
     httpOnly: true,                        
     secure: process.env.NODE_ENV === "production", 
-    sameSite: "Strict",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/"                             
   };
   res.clearCookie("token", cookieOptions);
@@ -387,8 +386,7 @@ exports.googleAuth = async (req, res) => {
         res.cookie("token", authToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", 
-          sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-          domain: process.env.NODE_ENV === "production" ? ".studyvault.space" : undefined,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
           maxAge: 1000 * 60 * 60 * 24, 
         });
 
@@ -404,8 +402,7 @@ exports.googleAuth = async (req, res) => {
           res.cookie("token", authToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production", 
-            sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-            domain: process.env.NODE_ENV === "production" ? ".studyvault.space" : undefined,
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             maxAge: 1000 * 60 * 60 * 24, 
           });
 

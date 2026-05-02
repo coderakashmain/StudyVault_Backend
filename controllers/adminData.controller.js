@@ -286,7 +286,7 @@ exports.adminLogout = (req, res) => {
     let cookieOptions = {
       httpOnly: true,                        
       secure: process.env.NODE_ENV === "production", 
-      sameSite: "Strict",                    
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",                    
       path: "/"                              
     };
     res.clearCookie("accestoken", cookieOptions);
