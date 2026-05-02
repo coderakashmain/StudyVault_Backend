@@ -115,8 +115,8 @@ exports.avatarUpdate = asyncHandler(async (req, res) => {
 exports.getTopContributors = asyncHandler(async (req, res) => {
   const sql = `
     SELECT
-      ud.upload_user_id,
-      ud.upload_user_name AS full_name,
+      ps.uploaded_by_user_id AS upload_user_id,
+      CONCAT(u.firstname, ' ', u.lastname) AS full_name,
 
       -- avatar from users table
       u.avatar_url AS avatar_url,
@@ -130,12 +130,13 @@ exports.getTopContributors = asyncHandler(async (req, res) => {
 
       COUNT(*) AS total_uploads
 
-    FROM upload_details ud
-    JOIN users u ON u.id = ud.upload_user_id
-    WHERE ud.created_at >= NOW() - INTERVAL '7 days'
+    FROM paper_submissions ps
+    JOIN users u ON u.id = ps.uploaded_by_user_id
+    WHERE ps.status = 'approved' AND ps.created_at >= NOW() - INTERVAL '7 days'
     GROUP BY
-      ud.upload_user_id,
-      ud.upload_user_name,
+      ps.uploaded_by_user_id,
+      u.firstname,
+      u.lastname,
       u.avatar_url,
       u.rollno
     ORDER BY total_uploads DESC

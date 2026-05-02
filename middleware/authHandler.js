@@ -47,9 +47,9 @@ const loginCheck = asyncHandler(async (req, res, next) => {
     const query = "SELECT avatar_url FROM users WHERE id = $1";
     const [user] = await connectionUserdb.query(query,[decoded.id]);
    
-    return success(res, "User is logged in",{token,avatar_url : user[0].avatar_url,id:decoded.id});
+    return success(res, "User is logged in",{token,avatar_url : user[0]?.avatar_url,id:decoded.id});
   }catch(err){
-    return failure(res, "Unauthorized: Invalid or expired token", 401);
+    return failure(res, `Unauthorized: ${err.message}`, 401);
   }
 });
 

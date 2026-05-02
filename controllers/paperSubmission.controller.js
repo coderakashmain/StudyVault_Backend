@@ -105,13 +105,8 @@ exports.approvePaper = asyncHandler(async (req, res) => {
       ? `${userRows[0].firstname} ${userRows[0].lastname}`
       : "Unknown User";
 
-    // 4️ Insert upload tracking
-    await connection.query(
-      `INSERT INTO upload_details
-       (paper_id, upload_admin_id, upload_user_id, upload_user_name)
-       VALUES ($1, $2, $3, $4)`,
-      [paperId, adminId, uploadedByUserId, uploaderName]
-    );
+    // 4️ [REMOVED] upload_details insertion to avoid migration
+    // Tracking is fully handled by the paper_submissions 'approved' status and reviewed_by_admin_id
 
     // 5️ Mark submission approved
     await connection.query(

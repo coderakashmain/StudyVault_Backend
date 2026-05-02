@@ -8,10 +8,6 @@ const {
   signup,
   login,
   logout,
-  signupCheck,
-  userCheck,
-  loginCheckFilter,
-  loginCheckContext,
   forgotPassword,
   verifyForgotOtp,
   resetPassword,
@@ -28,10 +24,6 @@ router.post('/LogIn/verifyOtp', verifyForgotOtp);
 router.post('/LogIn/ForgatePw/ResetPassword', resetPassword);
 router.post('/auth/google', googleAuth);
 
-// Authenticated routes
-router.get('/signup-check', verifyAuth, signupCheck);
-router.get('/usercheck', verifyAuth, userCheck);
-router.get('/login-check-filter', verifyAuth, loginCheckFilter);
-router.get('/login-check-context', verifyAuth, loginCheckContext);
+// Authenticated routes removed as they were redundant
 
 module.exports = router;

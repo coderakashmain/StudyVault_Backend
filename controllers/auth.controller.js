@@ -176,74 +176,7 @@ exports.logout = (req, res) => {
   res.status(200).json({ success: true });
 };
 
-exports.signupCheck = async (req, res) => {
-  try {
-    const query = "SELECT * FROM users WHERE id = $1";
-    const [results] = await connectionUserdb.query(query, [req.user.id]);
 
-    if (results.length > 0) {
-      res.status(200).json({ message: "user is available" });
-    } else {
-      res.status(404).json({ error: "User not found" });
-    }
-  } catch(err) {
-    console.error("Error retrieving user data", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.userCheck = async (req, res) => {
-  if (!req.user || !req.user.id) {
-    return res.status(400).json({ error: "Invalid user information in token" });
-  }
-  try {
-    const query = "SELECT * FROM users WHERE id = $1";
-    const [results] = await connectionUserdb.query(query, [req.user.id]);
-
-    if (results.length > 0) {
-      return res.status(200).json({ success: true });
-    } else {
-      return res.status(404).json({ message: "User not found" });
-    }
-  } catch(err) {
-    console.error("Error retrieving user data", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.loginCheckFilter = async (req, res) => {
-  if (!req.user || !req.user.id) {
-    return res.status(400).json({ error: "Invalid user information in token" });
-  }
-  try {
-    const query = "SELECT * FROM users WHERE id = $1";
-    const [results] = await connectionUserdb.query(query, [req.user.id]);
-
-    if (results.length > 0) {
-      return res.status(200).json({ message: "Successful" });
-    }
-    return res.status(404).json({ error: "User not found" });
-  } catch (err) {
-    console.error("Error retrieving user data:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.loginCheckContext = async (req, res) => {
-  try {
-    const query = "SELECT * FROM users WHERE id = $1";
-    const [results] = await connectionUserdb.query(query, [req.user.id]);
-
-    if (results.length > 0) {
-      return res.status(200).json({ message: "Successful" });
-    } else {
-      return res.status(404).json({ error: "User not found" });
-    }
-  } catch (err) {
-    console.error("Error retrieving user data:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
 
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
