@@ -15,7 +15,7 @@ exports.adminRegister = asyncHandler(async (req, res) => {
 
   // Check if user already exists
   const [existingUser] = await connectionUserdb.query(
-    "SELECT id FROM admin_login WHERE userid = ?",
+    "SELECT id FROM admin_login WHERE userid = $1",
     [userid]
   );
 
@@ -28,7 +28,7 @@ exports.adminRegister = asyncHandler(async (req, res) => {
 
   // Insert user
   await connectionUserdb.query(
-    "INSERT INTO admin_login (userid, password) VALUES (?, ?)",
+    "INSERT INTO admin_login (userid, password) VALUES ($1, $2)",
     [userid, hashedPassword]
   );
 
@@ -42,7 +42,7 @@ exports.adminLogin = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Userid and password required" });
   }
 
-  const query = "SELECT * FROM admin_login WHERE userid = ?";
+  const query = "SELECT * FROM admin_login WHERE userid = $1";
 
   const [results] = await connectionUserdb.query(query, [userid]);
 

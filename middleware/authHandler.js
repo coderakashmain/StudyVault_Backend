@@ -44,7 +44,7 @@ const loginCheck = asyncHandler(async (req, res, next) => {
   }
   try{
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const query = "SELECT avatar_url FROM users WHERE id = ?";
+    const query = "SELECT avatar_url FROM users WHERE id = $1";
     const [user] = await connectionUserdb.query(query,[decoded.id]);
    
     return success(res, "User is logged in",{token,avatar_url : user[0].avatar_url,id:decoded.id});

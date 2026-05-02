@@ -1,9 +1,6 @@
-const app = require('./app.js');
-const connectionUserdb = require('./config/db');
-require('dotenv').config();
-
-
-
+const app = require("./app.js");
+const connectionUserdb = require("./config/db");
+require("dotenv").config();
 
 /////////////
 
@@ -17,20 +14,18 @@ app.get("/", (req, res) => {
 // Health Check Endpoint - Test database connection anytime
 app.get("/health", async (req, res) => {
   try {
-    const conn = await connectionUserdb.getConnection();
-    await conn.query("SELECT 1");
-    conn.release();
-    res.status(200).json({ 
-      status: "success", 
+    const [rows] = await connectionUserdb.query("SELECT 1 AS result");
+    res.status(200).json({
+      status: "success",
       message: "✅ Database connected successfully",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(500).json({ 
-      status: "error", 
-      message: "❌ Database connection failed", 
+    res.status(500).json({
+      status: "error",
+      message: "❌ Database connection failed",
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -38,18 +33,16 @@ app.get("/health", async (req, res) => {
 // Test database connection on startup
 async function testDatabaseConnection() {
   try {
-    const conn = await connectionUserdb.getConnection();
-    await conn.query("SELECT 1");
-    conn.release();
+    const [rows] = await connectionUserdb.query("SELECT 1 AS result");
     console.log("✅ DATABASE CONNECTED SUCCESSFULLY!");
   } catch (error) {
     console.error("❌ DATABASE CONNECTION FAILED:", error.message);
-    console.error("Please check your database credentials in .env file");
+    console.error("Please check your DATABASE_URL in .env file");
     process.exit(1); // Exit if database fails
   }
 }
 
-app.listen(port, ip, async () => {
+app.listen(port, async () => {
   console.log(`The website is running on port ${port}`);
   await testDatabaseConnection();
 });

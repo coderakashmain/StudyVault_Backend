@@ -52,8 +52,8 @@ exports.questionUpload = asyncHandler(async (req, res) => {
   const sql = `
     INSERT INTO paper_submissions
     (departmentName, educationLevel, years, departmentYear, sem, midSem,
-     paper_name, url, semester, uploaded_by_user_id,title)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     paper_name, url, semester, uploaded_by_user_id, title)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
   `;
 
   await connectionUserdb.query(sql, [
@@ -102,7 +102,7 @@ exports.avatarUpdate = asyncHandler(async (req, res) => {
 
   //  DB Update
   await connectionUserdb.query(
-    "UPDATE users SET avatar_url = ? WHERE id = ?",
+    "UPDATE users SET avatar_url = $1 WHERE id = $2",
     [avatarUrl, userId]
   );
 
@@ -132,11 +132,11 @@ exports.getTopContributors = asyncHandler(async (req, res) => {
 
     FROM upload_details ud
     JOIN users u ON u.id = ud.upload_user_id
-    WHERE ud.created_at >= NOW() - INTERVAL 7 DAY
+    WHERE ud.created_at >= NOW() - INTERVAL '7 days'
     GROUP BY
       ud.upload_user_id,
       ud.upload_user_name,
-      u.picture,
+      u.avatar_url,
       u.rollno
     ORDER BY total_uploads DESC
     LIMIT 3;

@@ -26,9 +26,9 @@ exports.getPendingUploads = asyncHandler(async (req, res) => {
           AND p.semester = ps.semester
       ) AS is_duplicate,
 
-      -- 👇 Fetch matching titles as JSON array
+      -- Fetch matching titles as JSON array
       (
-        SELECT JSON_ARRAYAGG(p.title)
+        SELECT COALESCE(json_agg(p.title), '[]'::json)
         FROM papers p
         WHERE
           p.departmentName = ps.departmentName
@@ -60,7 +60,7 @@ exports.approvePaper = asyncHandler(async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // 1️ Insert into papers
+    // 1️ Insert into papers and get the new id
     const insertSql = `
       INSERT INTO papers
       (departmentName, educationLevel, years, departmentYear, sem, midSem,
@@ -69,22 +69,22 @@ exports.approvePaper = asyncHandler(async (req, res) => {
         departmentName, educationLevel, years, departmentYear, sem, midSem,
         title, url, semester
       FROM paper_submissions
-      WHERE id = ? AND status = 'pending'
-      FOR UPDATE
+      WHERE id = $1 AND status = 'pending'
+      RETURNING id
     `;
 
-    const [insertResult] = await connection.query(insertSql, [id]);
+    const [insertRows, insertResult] = await connection.query(insertSql, [id]);
 
-    if (insertResult.affectedRows === 0) {
+    if (insertRows.length === 0) {
       await connection.rollback();
       return failure(res, "Invalid or already reviewed submission", 400);
     }
 
-    const paperId = insertResult.insertId;
+    const paperId = insertRows[0].id;
 
     // 2️ Get uploader user id
     const [submissionRows] = await connection.query(
-      "SELECT uploaded_by_user_id FROM paper_submissions WHERE id = ?",
+      "SELECT uploaded_by_user_id FROM paper_submissions WHERE id = $1",
       [id]
     );
 
@@ -97,7 +97,7 @@ exports.approvePaper = asyncHandler(async (req, res) => {
 
     // 3️ Get uploader name
     const [userRows] = await connection.query(
-      "SELECT firstname, lastname FROM users WHERE id = ?",
+      "SELECT firstname, lastname FROM users WHERE id = $1",
       [uploadedByUserId]
     );
 
@@ -109,7 +109,7 @@ exports.approvePaper = asyncHandler(async (req, res) => {
     await connection.query(
       `INSERT INTO upload_details
        (paper_id, upload_admin_id, upload_user_id, upload_user_name)
-       VALUES (?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4)`,
       [paperId, adminId, uploadedByUserId, uploaderName]
     );
 
@@ -117,9 +117,9 @@ exports.approvePaper = asyncHandler(async (req, res) => {
     await connection.query(
       `UPDATE paper_submissions
        SET status='approved',
-           reviewed_by_admin_id=?,
+           reviewed_by_admin_id=$1,
            reviewed_at=NOW()
-       WHERE id=?`,
+       WHERE id=$2`,
       [adminId, id]
     );
 
@@ -142,17 +142,17 @@ exports.rejectPaper = asyncHandler(async (req, res) => {
     return failure(res, "Remark is required", 400);
   }
 
-  const [result] = await connectionUserdb.query(
+  const [, result] = await connectionUserdb.query(
     `UPDATE paper_submissions
      SET status='rejected',
-         admin_remark=?,
-         reviewed_by_admin_id=?,
+         admin_remark=$1,
+         reviewed_by_admin_id=$2,
          reviewed_at=NOW()
-     WHERE id=? AND status='pending'`,
+     WHERE id=$3 AND status='pending'`,
     [remark, adminId, id]
   );
 
-  if (result.affectedRows === 0) {
+  if (result.rowCount === 0) {
     return failure(res, "Invalid or already reviewed submission", 400);
   }
 
@@ -163,14 +163,14 @@ exports.updateRemark = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { remark } = req.body;
 
-  const [result] = await connectionUserdb.query(
+  const [, result] = await connectionUserdb.query(
     `UPDATE paper_submissions
-     SET admin_remark=?
-     WHERE id=? AND status='rejected'`,
+     SET admin_remark=$1
+     WHERE id=$2 AND status='rejected'`,
     [remark, id]
   );
 
-  if (result.affectedRows === 0) {
+  if (result.rowCount === 0) {
     return failure(res, "Only rejected submissions can be updated", 400);
   }
 

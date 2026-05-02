@@ -1,45 +1,65 @@
 require('dotenv').config();
-const mysql = require("mysql2/promise");
+const { Pool } = require('pg');
 
-const connectionUserdb = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
-    database:process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 20,
-    queueLimit: 0,
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false, // Required for Supabase
+    },
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
 });
 
-
-
 /**
- * Function to handle reconnections on connection error
- * @param {object} pool - The connection pool to monitor
- * @param {string} database - Database name for logging purposes
+ * Compatibility wrapper so existing code using MySQL-style destructuring
+ *   const [rows] = await db.query(sql, params)
+ * continues to work with pg (which returns { rows, rowCount }).
  */
-const handleReconnection = (pool, database) => {
-    pool.on('error', async (err) => {
-        if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-            console.error(`[${database}] Connection lost. Attempting to reconnect...`);
-            try {
-                // Verify the pool is functional by querying the database
-                await pool.query('SELECT 1');
-                console.log(`[${database}] Reconnection successful.`);
-            } catch (error) {
-                console.error(`[${database}] Reconnection failed. Error: ${error.message}`);
-                setTimeout(() => handleReconnection(pool, database), 5000); // Retry after 5 seconds
-            }
-        } else {
-            console.error(`[${database}] Unexpected error: ${err.message}`);
-        }
-    });
+const connectionUserdb = {
+    /**
+     * Run a query and return [rows, result] to match mysql2's [rows, fields] pattern.
+     * @param {string} text  - SQL query with $1, $2... placeholders
+     * @param {Array}  params - parameter values
+     */
+    query: async (text, params) => {
+        const result = await pool.query(text, params);
+        // Return [rows, fullResult] so destructuring const [rows] = ... works
+        return [result.rows, result];
+    },
+
+    /**
+     * Get a raw client from the pool (for transactions).
+     * The returned client has a wrapped .query that also returns [rows, result].
+     */
+    getConnection: async () => {
+        const client = await pool.connect();
+        // Wrap the client to match the mysql2 pattern
+        const wrappedClient = {
+            query: async (text, params) => {
+                const result = await client.query(text, params);
+                return [result.rows, result];
+            },
+            beginTransaction: async () => {
+                await client.query('BEGIN');
+            },
+            commit: async () => {
+                await client.query('COMMIT');
+            },
+            rollback: async () => {
+                await client.query('ROLLBACK');
+            },
+            release: () => {
+                client.release();
+            },
+        };
+        return wrappedClient;
+    },
 };
 
-// Attach reconnection handlers
-handleReconnection(connectionUserdb, 'userdb');
+// Handle pool errors
+pool.on('error', (err) => {
+    console.error('Unexpected database pool error:', err.message);
+});
 
 module.exports = connectionUserdb;
-
-
