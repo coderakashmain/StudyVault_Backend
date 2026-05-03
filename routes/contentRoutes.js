@@ -6,6 +6,7 @@ const {
   filterPapers,
   getSyllabus,
   getNotes,
+  getHomeData,
   noteClickCount,
   noteDownloadCount
 } = require('../controllers/content.controller');
@@ -13,6 +14,7 @@ const {
 router.get('/Filter', filterPapers);
 router.get('/syllabus', getSyllabus);
 router.get('/notefetch', getNotes);
+router.get('/home-data', getHomeData);
 router.post('/noteClickCount', noteClickCount);
 router.post('/notedonwloadcount', verifyAuth, noteDownloadCount);
 

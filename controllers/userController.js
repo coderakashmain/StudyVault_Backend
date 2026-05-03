@@ -132,7 +132,6 @@ exports.getTopContributors = asyncHandler(async (req, res) => {
 
     FROM paper_submissions ps
     JOIN users u ON u.id = ps.uploaded_by_user_id
-    WHERE ps.status = 'approved' AND ps.created_at >= NOW() - INTERVAL '7 days'
     GROUP BY
       ps.uploaded_by_user_id,
       u.firstname,
@@ -145,4 +144,43 @@ exports.getTopContributors = asyncHandler(async (req, res) => {
 
   const [rows] = await connectionUserdb.query(sql);
   return success(res, "Top contributors fetched", rows);
+});
+
+exports.getUserSubmissions = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  
+  const sql = `
+    SELECT 
+      id, title, departmentname, semester, status, admin_remark, created_at, url 
+    FROM paper_submissions 
+    WHERE uploaded_by_user_id = $1 
+    ORDER BY created_at DESC
+  `;
+
+  const [rows] = await connectionUserdb.query(sql, [userId]);
+  return success(res, "User submissions fetched", rows);
+});
+
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { firstname, lastname, rollno } = req.body;
+
+  const sql = `
+    UPDATE users 
+    SET firstname = $1, lastname = $2, rollno = $3
+    WHERE id = $4
+  `;
+
+  await connectionUserdb.query(sql, [firstname, lastname, rollno, userId]);
+  return success(res, "Profile updated successfully");
+});
+
+exports.requestDeletion = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { reason } = req.body;
+
+  const sql = "INSERT INTO deletion_requests (user_id, reason) VALUES ($1, $2)";
+  await connectionUserdb.query(sql, [userId, reason || "No reason provided"]);
+
+  return success(res, "Deletion request submitted successfully");
 });

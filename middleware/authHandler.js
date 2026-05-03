@@ -38,17 +38,38 @@ const verifyAuth = asyncHandler(async (req, res, next) => {
 
 const loginCheck = asyncHandler(async (req, res, next) => {
   let token = null;
-  token = req.cookies?.token;
-  if(!token){
+
+  // Check Authorization header first (mobile apps send Bearer token)
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  // Fallback to cookie (web browsers)
+  if (!token) {
+    token = req.cookies?.token;
+  }
+
+  if (!token) {
     return failure(res, "Unauthorized: Token missing", 401);
   }
-  try{
+
+  try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const query = "SELECT avatar_url FROM users WHERE id = $1";
-    const [user] = await connectionUserdb.query(query,[decoded.id]);
-   
-    return success(res, "User is logged in",{token,avatar_url : user[0]?.avatar_url,id:decoded.id});
-  }catch(err){
+    const query = "SELECT id, firstname, lastname, gmail, rollno, avatar_url FROM users WHERE id = $1";
+    const [user] = await connectionUserdb.query(query, [decoded.id]);
+    const userData = user[0];
+    if (!userData) return failure(res, "Unauthorized: User not found", 401);
+
+    return success(res, "User is logged in", {
+      token,
+      id: decoded.id,
+      avatar_url: userData.avatar_url,
+      firstname: userData.firstname,
+      lastname: userData.lastname,
+      gmail: userData.gmail,
+      rollno: userData.rollno,
+    });
+  } catch (err) {
     return failure(res, `Unauthorized: ${err.message}`, 401);
   }
 });

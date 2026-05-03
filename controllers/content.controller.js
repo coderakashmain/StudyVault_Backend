@@ -7,7 +7,7 @@ exports.filterPapers = async (req, res) => {
 
   try {
     if (req.query.departmentName) {
-      query += ` AND departmentName = $${paramIndex++}`;
+      query += ` AND departmentname = $${paramIndex++}`;
       params.push(req.query.departmentName);
     }
 
@@ -21,7 +21,7 @@ exports.filterPapers = async (req, res) => {
       }
 
       if (educationLevels.length > 0) {
-        query += ` AND educationLevel = ANY($${paramIndex++}::text[])`; 
+        query += ` AND educationlevel = ANY($${paramIndex++}::text[])`; 
         params.push(educationLevels);
       }
     }
@@ -37,17 +37,17 @@ exports.filterPapers = async (req, res) => {
     }
 
     if (req.query.departmentYear) {
-      query += ` AND departmentYear = $${paramIndex++}`;
+      query += ` AND "departmentYear" = $${paramIndex++}`;
       params.push(req.query.departmentYear);
     }
 
     if (req.query.sem === "true" || req.query.midSem === "true") {
       let conditions = [];
       if (req.query.sem === "true") {
-        conditions.push("sem = true");
+        conditions.push("sem = 1");
       }
       if (req.query.midSem === "true") {
-        conditions.push("midSem = true");
+        conditions.push('"midSem" = 1');
       }
 
       if (conditions.length > 0) {
@@ -74,12 +74,12 @@ exports.getSyllabus = async (req, res) => {
 
   try {
     if (req.query.Educationlavel) {
-      query += ` AND EducationalLable = $${paramIndex++}`;
+      query += ` AND "EducationalLable" = $${paramIndex++}`;
       params.push(req.query.Educationlavel);
     }
     
     if (req.query.Stream) {
-      query += ` AND Stream = $${paramIndex++}`;
+      query += ` AND "Stream" = $${paramIndex++}`;
       params.push(req.query.Stream);
     }
 
@@ -96,9 +96,12 @@ exports.getSyllabus = async (req, res) => {
 };
 
 exports.getNotes = async (req, res) => {
-  let query = "SELECT * FROM notes";
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = parseInt(req.query.offset) || 0;
+  
+  let query = `SELECT id, notefullname, subjectname, unit, url, totaldownload, COALESCE("totalClicks", 0) AS totalclicks FROM notes ORDER BY id DESC LIMIT $1 OFFSET $2`;
   try {
-    const [results] = await connectionUserdb.query(query); 
+    const [results] = await connectionUserdb.query(query, [limit, offset]); 
     res.status(200).json(results);
   } catch (err) {
     console.error("Error fetching notes:", err);
@@ -106,16 +109,34 @@ exports.getNotes = async (req, res) => {
   }
 };
 
+exports.getHomeData = async (req, res) => {
+  try {
+    const [recentPapers] = await connectionUserdb.query(
+      "SELECT * FROM papers ORDER BY id DESC LIMIT 5"
+    );
+    const [recentNotes] = await connectionUserdb.query(
+      "SELECT * FROM notes ORDER BY id DESC LIMIT 5"
+    );
+    res.status(200).json({ recentPapers, recentNotes });
+  } catch (err) {
+    console.error("Error fetching home data:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
 exports.noteClickCount = async (req, res) => {
   const { id } = req.body;
+  if (!id) return res.status(400).json({ error: "Note ID is required" });
+
   try {
-    await connectionUserdb.query('UPDATE notes SET totalClicks = COALESCE(totalClicks, 0) + 1 WHERE id = $1', [id]);
-    const [results] = await connectionUserdb.query('SELECT totalClicks FROM notes WHERE id = $1', [id]);
+    await connectionUserdb.query('UPDATE notes SET "totalClicks" = COALESCE("totalClicks", 0) + 1 WHERE id = $1::int', [id]);
+    const [results] = await connectionUserdb.query('SELECT COALESCE("totalClicks", 0) AS totalclicks FROM notes WHERE id = $1::int', [id]);
     
-    res.json({ count: results[0]?.totalclicks || results[0]?.totalClicks });
+    res.json({ count: results[0]?.totalclicks || 0 });
   } catch (err) {
-    console.error("Database error:", err);
-    res.status(500).send("Error updating click count");
+    console.error("Database error in noteClickCount:", err.message);
+    res.status(500).json({ error: "Error updating click count", details: err.message });
   }
 };
 

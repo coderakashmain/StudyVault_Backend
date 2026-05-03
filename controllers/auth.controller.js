@@ -166,14 +166,16 @@ exports.login = async (req, res) => {
 };
 
 exports.logout = (req, res) => {
-  let cookieOptions = {
-    httpOnly: true,                        
-    secure: process.env.NODE_ENV === "production", 
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    path: "/"                             
-  };
-  res.clearCookie("token", cookieOptions);
-  res.status(200).json({ success: true });
+  const isProd = process.env.NODE_ENV === "production";
+  
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/"
+  });
+
+  res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
 
@@ -201,7 +203,7 @@ exports.forgotPassword = async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60000); 
 
     await connectionUserdb.query(
-      "UPDATE users SET otp = $1, otpExpires = $2, lastOtpTime = $3 WHERE gmail = $4",
+      "UPDATE users SET otp = $1, \"otpExpires\" = $2, \"lastOtpTime\" = $3 WHERE gmail = $4",
       [otp, otpExpires, now, email]
     );
 
@@ -258,7 +260,7 @@ exports.verifyForgotOtp = async (req, res) => {
     }
 
     const [, updateResults] = await connectionUserdb.query(
-      "UPDATE users SET otp = NULL, otpExpires = NULL, lastOtpTime = NULL WHERE gmail = $1",
+      "UPDATE users SET otp = NULL, \"otpExpires\" = NULL, \"lastOtpTime\" = NULL WHERE gmail = $1",
       [email]
     );
 

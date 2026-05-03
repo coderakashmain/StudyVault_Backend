@@ -1,5 +1,6 @@
 const axios = require('axios');
 const nodemailer = require("nodemailer");
+const connectionUserdb = require("../config/db");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -69,6 +70,56 @@ exports.connectUsData = async (req, res) => {
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.submitFeedback = async (req, res) => {
+  const { type, rating, message } = req.body;
+  const userId = req.user?.id;
+
+  try {
+    // 1. Get user email for notification
+    let userEmail = 'Anonymous';
+    if (userId) {
+      const [userRows] = await connectionUserdb.query("SELECT gmail FROM users WHERE id = $1", [userId]);
+      if (userRows.length > 0) {
+        userEmail = userRows[0].gmail;
+      }
+    }
+
+    // 2. Save to database
+    const sql = `
+      INSERT INTO feedback (user_id, feedback_type, rating, message)
+      VALUES ($1, $2, $3, $4)
+    `;
+    await connectionUserdb.query(sql, [userId, type, rating, message]);
+
+    // 3. Send email notification to admin
+    const mailOptions = {
+      to: process.env.EMAIL_USER,
+      from: 'StudyVault Feedback System',
+      subject: `New ${type} Feedback Received`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #6366f1;">New User Feedback</h2>
+          <p><strong>User ID:</strong> ${userId || 'N/A'}</p>
+          <p><strong>User Email:</strong> ${userEmail}</p>
+          <p><strong>Type:</strong> ${type}</p>
+          <p><strong>Rating:</strong> ${rating}/5</p>
+          <p style="background: #f9fafb; padding: 15px; border-radius: 8px;">
+            <strong>Message:</strong><br/>${message}
+          </p>
+          <p style="font-size: 12px; color: #666;">This is an automated notification from StudyVault App.</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ success: true, message: "Feedback submitted successfully" });
+  } catch (error) {
+    console.error("Feedback Error:", error);
+    return res.status(500).json({ success: false, error: "Failed to submit feedback" });
   }
 };
 

@@ -10,8 +10,24 @@ const errorHandler = require("./middleware/errorHandler");
 
 const server = require('http').createServer(app);
 
+const allowedOrigins = [
+  "https://studyvault.space",
+  "https://www.studyvault.space",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:8081",
+  "http://127.0.0.1:8081",
+];
+
 app.use(cors({
-  origin: ["https://studyvault.space", "https://www.studyvault.space", "http://localhost:5173", "http://localhost:3000"],
+  // Allow whitelisted web origins AND React Native apps (which have no/null origin)
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
   credentials: true
 }));
 

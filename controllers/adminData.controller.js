@@ -281,6 +281,44 @@ exports.adminPage = async (req, res) => {
   }
 };
 
+exports.getFeedbacks = async (req, res) => {
+  try {
+    const [rows] = await connectionUserdb.query("SELECT f.*, u.firstname, u.lastname, u.gmail FROM feedback f LEFT JOIN users u ON f.user_id = u.id ORDER BY f.created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getPaymentHistory = async (req, res) => {
+  try {
+    const [rows] = await connectionUserdb.query("SELECT * FROM payments ORDER BY created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getDeletionRequests = async (req, res) => {
+  try {
+    const [rows] = await connectionUserdb.query("SELECT d.*, u.firstname, u.lastname, u.gmail FROM deletion_requests d LEFT JOIN users u ON d.user_id = u.id ORDER BY d.created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateDeletionRequest = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    await connectionUserdb.query("UPDATE deletion_requests SET status = $1 WHERE id = $2", [status, id]);
+    res.json({ status: true, message: "Status updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.adminLogout = (req, res) => {
   try {
     let cookieOptions = {
