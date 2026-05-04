@@ -41,7 +41,7 @@ exports.getPendingUploads = asyncHandler(async (req, res) => {
 
     FROM paper_submissions ps
     JOIN users u ON u.id = ps.uploaded_by_user_id
-    WHERE ps.status = 'pending'
+    WHERE ps.status = 'pending' OR ps.status IS NULL
     ORDER BY ps.created_at DESC;
   `;
 
@@ -69,7 +69,7 @@ exports.approvePaper = asyncHandler(async (req, res) => {
         departmentName, educationLevel, years, departmentYear, sem, midSem,
         title, url, semester
       FROM paper_submissions
-      WHERE id = $1 AND status = 'pending'
+      WHERE id = $1 AND (status = 'pending' OR status IS NULL)
       RETURNING id
     `;
 
@@ -143,7 +143,7 @@ exports.rejectPaper = asyncHandler(async (req, res) => {
          admin_remark=$1,
          reviewed_by_admin_id=$2,
          reviewed_at=NOW()
-     WHERE id=$3 AND status='pending'`,
+     WHERE id=$3 AND (status='pending' OR status IS NULL)`,
     [remark, adminId, id]
   );
 

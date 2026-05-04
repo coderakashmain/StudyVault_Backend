@@ -52,8 +52,8 @@ exports.questionUpload = asyncHandler(async (req, res) => {
   const sql = `
     INSERT INTO paper_submissions
     (departmentName, educationLevel, years, departmentYear, sem, midSem,
-     paper_name, url, semester, uploaded_by_user_id, title)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     paper_name, url, semester, uploaded_by_user_id, title, status)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
   `;
 
   await connectionUserdb.query(sql, [
