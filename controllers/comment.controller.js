@@ -50,14 +50,14 @@ exports.addComment = async (req, res) => {
     const mailOptions = {
       to: process.env.MY_GMAIL,
       from: process.env.EMAIL_USER,
-      subject: "Someone Comment on Studyvault",
+      subject: "Someone Comment on StudyVault Campus",
       html: `
         <html>
           <body style="font-family: Arial, sans-serif; color: #333;">
             <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
               <h1 >Name is :${name} <br/> Gmail is : ${gmail} <br/>  Gender :${gender} </h1>
               <h2 style=" margin: auto; font-size: 1.5rem;">This is the messsage : ${message}</h2>
-              <h4>The StudyVault Team</h4>
+              <h4>The StudyVault Campus Team</h4>
             </div>
           </body>
         </html>
@@ -87,14 +87,14 @@ exports.replyToComment = async (req, res) => {
     const mailOptions = {
       to: process.env.MY_GMAIL,
       from: process.env.EMAIL_USER,
-      subject: `Someone Replies on Studyvault of this id : ${id}`,
+      subject: `Someone Replies on StudyVault Campus of this id : ${id}`,
       html: `
         <html>
           <body style="font-family: Arial, sans-serif; color: #333;">
             <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
               <h1 >Name is :${name} <br/> Gmail is : ${gmail} <br/>  Gender :${gender} </h1>
               <h2 style=" margin: auto; font-size: 1.5rem;">This is the Reply messsage : ${message}</h2>
-              <h4>The StudyVault Team</h4>
+              <h4>The StudyVault Campus Team</h4>
             </div>
           </body>
         </html>

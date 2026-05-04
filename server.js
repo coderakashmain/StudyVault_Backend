@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 const ip = process.env.IP || "0.0.0.0";
 
 app.get("/", (req, res) => {
-  res.send("StudyVault Backend is running successfully.");
+  res.send("StudyVault Campus Backend is running successfully.");
 });
 
 // Health Check Endpoint - Test database connection anytime

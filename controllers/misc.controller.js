@@ -45,7 +45,7 @@ exports.connectUsData = async (req, res) => {
     const mailOptions = {
       to: mygmail,
       from: gmail,
-      subject: "StudyVault Connect fo advertising, Client message",
+      subject: "StudyVault Campus Connect fo advertising, Client message",
       html: `
         <html>
           <body style="font-family: Arial, sans-serif; color: #333;">
@@ -58,7 +58,7 @@ exports.connectUsData = async (req, res) => {
               <h2 style=" margin: auto; font-size: 1.3rem;"> Message -  ${message} </h2>
               <p>This message from advertising section.</p>
               <h4>Best regards,</h4>
-              <h4>The StudyVault Team</h4>
+              <h4>The StudyVault Campus Team</h4>
             </div>
           </body>
         </html>
@@ -97,7 +97,7 @@ exports.submitFeedback = async (req, res) => {
     // 3. Send email notification to admin
     const mailOptions = {
       to: process.env.EMAIL_USER,
-      from: 'StudyVault Feedback System',
+      from: 'StudyVault Campus Feedback System',
       subject: `New ${type} Feedback Received`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -109,7 +109,7 @@ exports.submitFeedback = async (req, res) => {
           <p style="background: #f9fafb; padding: 15px; border-radius: 8px;">
             <strong>Message:</strong><br/>${message}
           </p>
-          <p style="font-size: 12px; color: #666;">This is an automated notification from StudyVault App.</p>
+          <p style="font-size: 12px; color: #666;">This is an automated notification from StudyVault Campus App.</p>
         </div>
       `,
     };
@@ -136,5 +136,26 @@ exports.shortenUrl = async (req, res) => {
   } catch (error) {
       console.error("ShrinkEarn Error:", error);
       res.status(500).json({ error: "Failed to shorten URL" });
+  }
+};
+
+exports.getAppVersion = async (req, res) => {
+  try {
+    // Current latest version available for download
+    const latestVersion = "1.0.0";
+    // URL where users can download the updated APK
+    const downloadUrl = "https://studyvault.space";
+    
+    // Set forceUpdate to true if older versions are no longer supported
+    const forceUpdate = false;
+
+    res.json({
+      latestVersion,
+      downloadUrl,
+      forceUpdate,
+    });
+  } catch (error) {
+    console.error("App Version Check Error:", error);
+    res.status(500).json({ error: "Failed to check app version" });
   }
 };

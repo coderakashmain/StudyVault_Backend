@@ -130,7 +130,7 @@ exports.paymentStatus = async (req, res) => {
         const mailOptions = {
           to: usermail,
           from: process.env.EMAIL_USER,
-          subject: "StudyVault Payment verificaiton Message .",
+          subject: "StudyVault Campus Payment verification Message .",
           html: `
            <html>
             <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
@@ -144,9 +144,9 @@ exports.paymentStatus = async (req, res) => {
                 <div style="background-color: #f1f1f1; padding: 15px; border-radius: 6px; margin: 20px 0;">
                   <p style="font-size: 1rem; color: #444;">Your payment has been successfully processed. Thank you for supporting Us. If you have any questions, feel free to reach out to our support team.</p>
                 </div>
-                <p style="font-size: 0.9rem; color: #777;">This message is related to your payment through StudyVault.</p>
+                <p style="font-size: 0.9rem; color: #777;">This message is related to your payment through StudyVault Campus.</p>
                 <h4 style="margin-top: 30px; color: #333;">Best regards,</h4>
-                <h4 style="color: #4CAF50;">The StudyVault Team</h4>
+                <h4 style="color: #4CAF50;">The StudyVault Campus Team</h4>
               </div>
             </body>
           </html>
