@@ -15,6 +15,8 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  connectionTimeout: 10000, // Fail after 10 seconds instead of hanging
+  greetingTimeout: 10000,
 });
 
 exports.otpVerify = async (req, res) => {
