@@ -15,7 +15,7 @@ router.post("/submissions/:id/update-remark", verifyAdminAuth, updateRemark);
 router.post("/upload-apk", verifyAdminAuth, apkUpload.single("apk"), uploadApk);
 
 
-router.post("/AdminLogIn", validate(adminLoginSchemas), adminLogin);
+router.post("/login", validate(adminLoginSchemas), adminLogin);
 router.get("/admin-login-check", adminLoginCheck);
 
 module.exports = router;

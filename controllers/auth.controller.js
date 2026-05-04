@@ -129,13 +129,7 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { gmail, password } = req.body;
-  
-  const origin = req.get('origin');
-  const isWeb = origin && (origin.includes('studyvault.space') || origin.includes('localhost:5173') || origin.includes('localhost:3000'));
 
-  if (isWeb && !req.session.isVerified && process.env.NODE_ENV === "production") {
-    return res.status(403).json({ success: false, message: "CAPTCHA verification required" });
-  }
   
   try {
     const query = "SELECT * FROM users WHERE gmail = $1";
@@ -154,7 +148,6 @@ exports.login = async (req, res) => {
           sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
           maxAge: 1000 * 60 * 60 * 24, 
         });
-        req.session.isVerified = false;
         res.status(200).json({ success: true, token });
       } else {
         res.status(300).json({ error: "Invalid password" });

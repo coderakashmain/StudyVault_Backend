@@ -14,14 +14,14 @@ const {
   googleAuth
 } = require('../controllers/auth.controller');
 
-router.post('/LogIn/Signup/otpVarify', otpVerify);
-router.post('/LogIn/Signup/otpVarify/confirm', otpVerifyConfirm);
-router.post('/LogIn/Signup', signup);
-router.post('/LogIn', login);
-router.post('/logOut', logout);
-router.post('/LogIn/ForgatePw', forgotPassword);
-router.post('/LogIn/verifyOtp', verifyForgotOtp);
-router.post('/LogIn/ForgatePw/ResetPassword', resetPassword);
+router.post('/login/signup/otp-verify', otpVerify);
+router.post('/login/signup/otp-verify/confirm', otpVerifyConfirm);
+router.post('/login/signup', signup);
+router.post('/login', login);
+router.post('/logout', logout);
+router.post('/login/forgot-password', forgotPassword);
+router.post('/login/verify-otp', verifyForgotOtp);
+router.post('/login/reset-password', resetPassword);
 router.post('/auth/google', googleAuth);
 
 // Authenticated routes removed as they were redundant

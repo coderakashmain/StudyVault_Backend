@@ -72,7 +72,7 @@ const miscRoutes = require('./routes/miscRoutes');
 
 // Mount Routes
 app.use('/api/user', userRouter);
-app.use('/api/Admin', adminRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api', authRoutes);
 app.use('/api', profileRoutes);
 app.use('/api', contentRoutes);
