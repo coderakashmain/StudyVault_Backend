@@ -189,9 +189,11 @@ exports.forgotPassword = async (req, res) => {
 
     const user = results[0];
     const now = new Date();
-    const lastOtpTime = new Date(user.lastOtpTime);
+    const lastOtpTime = user.lastOtpTime ? new Date(user.lastOtpTime) : null;
+    const timeDiff = lastOtpTime ? now - lastOtpTime : Infinity;
 
-    if (user.lastOtpTime && now - lastOtpTime < 30000) {
+    // timeDiff > 0 ensures we ignore stale timestamps that appear in the future (timezone mismatch)
+    if (lastOtpTime && timeDiff > 0 && timeDiff < 30000) {
       return res.status(429).json({
         error: "OTP already sent. Please wait 30 seconds before requesting another OTP",
       });
