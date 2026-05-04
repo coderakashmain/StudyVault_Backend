@@ -3,16 +3,15 @@ const { adminLogin } = require("../controllers/adminauth.controller");
 const validate = require("../middleware/validate");
 const { adminLoginSchemas } = require("../schemas/AdminScemas");
 const { adminLoginCheck ,verifyAdminAuth} = require("../middleware/adminauthHandler");
-const {getPendingUploads,approvePaper,rejectPaper,updateRemark} = require("../controllers/paperSubmission.controller");
+const { getPendingUploads, approvePaper, rejectPaper, updateRemark } = require("../controllers/paperSubmission.controller");
 const { uploadApk } = require("../controllers/admin.controller");
-const apkUpload = require("../utils/apkMulter");
 
 router.get("/pending-uploads", verifyAdminAuth, getPendingUploads);
 router.post("/submissions/:id/approve", verifyAdminAuth, approvePaper);
 router.post("/submissions/:id/reject", verifyAdminAuth, rejectPaper);
 router.post("/submissions/:id/update-remark", verifyAdminAuth, updateRemark); 
 
-router.post("/upload-apk", verifyAdminAuth, apkUpload.single("apk"), uploadApk);
+router.post("/upload-apk", verifyAdminAuth, uploadApk);
 
 
 router.post("/login", validate(adminLoginSchemas), adminLogin);
