@@ -212,8 +212,8 @@ exports.forgotPassword = async (req, res) => {
     if (attempts === 0) {
       await connectionUserdb.query(
         `UPDATE users SET otp = $1, "otpExpires" = $2, "lastOtpTime" = $3,
-         otp_attempts = 1, otp_window_start = $3 WHERE gmail = $4`,
-        [otp, otpExpires, now, email]
+         otp_attempts = 1, otp_window_start = $4 WHERE gmail = $5`,
+        [otp, otpExpires, now, now.toISOString(), email]
       );
     } else {
       await connectionUserdb.query(
