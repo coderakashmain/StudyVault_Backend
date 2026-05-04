@@ -189,23 +189,40 @@ exports.forgotPassword = async (req, res) => {
 
     const user = results[0];
     const now = new Date();
-    const lastOtpTime = user.lastOtpTime ? new Date(user.lastOtpTime) : null;
-    const timeDiff = lastOtpTime ? now - lastOtpTime : Infinity;
 
-    // timeDiff > 0 ensures we ignore stale timestamps that appear in the future (timezone mismatch)
-    if (lastOtpTime && timeDiff > 0 && timeDiff < 30000) {
+    // ── Rate limit: max 3 OTP requests per 60 seconds ──────────────────────
+    const windowStart = user.otp_window_start ? new Date(user.otp_window_start) : null;
+    const windowAge   = windowStart ? now - windowStart : Infinity;
+
+    // windowAge < 0 means a stale timezone-skewed timestamp — treat as expired
+    const windowActive = windowStart && windowAge >= 0 && windowAge < 60000;
+    const attempts     = windowActive ? (user.otp_attempts || 0) : 0;
+
+    if (attempts >= 3) {
       return res.status(429).json({
-        error: "OTP already sent. Please wait 30 seconds before requesting another OTP",
+        error: "Too many OTP requests. Please try again after 30 seconds.",
       });
     }
+    // ───────────────────────────────────────────────────────────────────────
 
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60000); 
+    const otp        = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60000);
 
-    await connectionUserdb.query(
-      "UPDATE users SET otp = $1, \"otpExpires\" = $2, \"lastOtpTime\" = $3 WHERE gmail = $4",
-      [otp, otpExpires, now, email]
-    );
+    // Reset window on first attempt, otherwise increment counter
+    if (attempts === 0) {
+      await connectionUserdb.query(
+        `UPDATE users SET otp = $1, "otpExpires" = $2, "lastOtpTime" = $3,
+         otp_attempts = 1, otp_window_start = $3 WHERE gmail = $4`,
+        [otp, otpExpires, now, email]
+      );
+    } else {
+      await connectionUserdb.query(
+        `UPDATE users SET otp = $1, "otpExpires" = $2, "lastOtpTime" = $3,
+         otp_attempts = otp_attempts + 1 WHERE gmail = $4`,
+        [otp, otpExpires, now, email]
+      );
+    }
+
 
     const mailOptions = {
       to: email,
