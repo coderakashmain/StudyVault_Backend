@@ -2,22 +2,14 @@ const connectionUserdb = require("../config/db");
 const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require('resend');
 const { OAuth2Client } = require('google-auth-library');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000, // Fail after 10 seconds instead of hanging
-  greetingTimeout: 10000,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 exports.otpVerify = async (req, res) => {
   const { email } = req.body;
@@ -37,28 +29,26 @@ exports.otpVerify = async (req, res) => {
     const updateQuery = "UPDATE useremailverification SET otp = $1, expireotp = $2 WHERE gmail = $3";
     await connectionUserdb.query(updateQuery, [otp, otpExpires, email]);
 
-    const mailOptions = {
+    await resend.emails.send({
+      from: 'StudyVault Campus <onboarding@resend.dev>',
       to: email,
-      from: process.env.EMAIL_USER,
-      subject: "StudyVault Campus OTP for verify Email",
+      subject: 'StudyVault Campus OTP for verify Email',
       html: `
         <html>
           <body style="font-family: Arial, sans-serif; color: #333;">
             <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
               <h1 style="text-align: center;">Welcome to StudyVault Campus</h1>
               <p style="text-align: center;font-size: 1.1rem">Hi...</p>
-              <p>You requested to verify your email. Please use the following One-Time Password (OTP) to verify your email:</p>
+              <p>You requested to verify your email. Please use the following One-Time Password (OTP):</p>
               <h2 style="text-align: center; margin: auto; font-size: 2.4rem;">${otp}</h2>
-              <p>The OTP is valid for the next 10 minutes. If you did not request to verify your email, please ignore this email.</p>
+              <p>The OTP is valid for the next 10 minutes. If you did not request this, please ignore this email.</p>
               <h4>Best regards,</h4>
               <h4>The StudyVault Campus Team</h4>
             </div>
           </body>
         </html>
       `,
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
     return res.status(200).json("OTP sent");
   } catch (error) {
     console.error("Error:", error);
@@ -224,34 +214,27 @@ exports.forgotPassword = async (req, res) => {
     }
 
 
-    const mailOptions = {
+    await resend.emails.send({
+      from: 'StudyVault Campus <onboarding@resend.dev>',
       to: email,
-      from: process.env.EMAIL_USER,
-      subject: "StudyVault Campus Password Reset OTP",
+      subject: 'StudyVault Campus Password Reset OTP',
       html: `
         <html>
           <body style="font-family: Arial, sans-serif; color: #333;">
             <div style="width: 80vw; margin: auto; border: 1px solid gray; border-radius: 4px; padding: 20px;">
               <h1 style="text-align: center;">Welcome to StudyVault Campus</h1>
               <p style="text-align: center; font-size: 1.1rem">Hi, ${user.firstname} ${user.lastname}</p>
-              <p>You requested to reset your password. Please use the following One-Time Password (OTP) to reset your password:</p>
+              <p>You requested to reset your password. Please use the following One-Time Password (OTP):</p>
               <h2 style="text-align: center; margin: auto; font-size: 2.4rem;">${otp}</h2>
-              <p>The OTP is valid for the next 10 minutes. If you did not request a password reset, please ignore this email.</p>
+              <p>The OTP is valid for the next 10 minutes. If you did not request this, please ignore this email.</p>
               <h4>Best regards,</h4>
               <h4>The StudyVault Campus Team</h4>
             </div>
           </body>
         </html>
       `,
-    };
-
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error("Email sending error:", err);
-        return res.status(500).json({ error: "Email sending error" });
-      }
-      return res.status(200).json("OTP sent");
     });
+    return res.status(200).json("OTP sent");
   } catch (err) {
     console.error("Error handling request:", err);
     return res.status(500).json({ error: "Database or server error" });
