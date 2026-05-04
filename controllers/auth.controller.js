@@ -30,7 +30,7 @@ exports.otpVerify = async (req, res) => {
     await connectionUserdb.query(updateQuery, [otp, otpExpires, email]);
 
     await resend.emails.send({
-      from: 'StudyVault Campus <onboarding@resend.dev>',
+      from: 'StudyVault Campus <noreply@studyvault.space>',
       to: email,
       subject: 'StudyVault Campus OTP for verify Email',
       html: `
@@ -215,7 +215,7 @@ exports.forgotPassword = async (req, res) => {
 
 
     await resend.emails.send({
-      from: 'StudyVault Campus <onboarding@resend.dev>',
+      from: 'StudyVault Campus <noreply@studyvault.space>',
       to: email,
       subject: 'StudyVault Campus Password Reset OTP',
       html: `
