@@ -132,6 +132,7 @@ exports.getTopContributors = asyncHandler(async (req, res) => {
 
     FROM paper_submissions ps
     JOIN users u ON u.id = ps.uploaded_by_user_id
+    WHERE ps.status = 'approved'
     GROUP BY
       ps.uploaded_by_user_id,
       u.firstname,
