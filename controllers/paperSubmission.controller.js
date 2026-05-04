@@ -10,6 +10,7 @@ exports.getPendingUploads = asyncHandler(async (req, res) => {
   const sql = `
     SELECT
       ps.*,
+      ps.paper_name AS title, -- Map paper_name to title for frontend
       CONCAT(u.firstname, ' ', u.lastname) AS uploaded_by_name,
       u.gmail AS uploaded_by_email,
 
@@ -18,12 +19,12 @@ exports.getPendingUploads = asyncHandler(async (req, res) => {
         SELECT 1
         FROM papers p
         WHERE
-          p.departmentName = ps.departmentName
-          AND p.educationLevel = ps.educationLevel
-          AND p.years = ps.years
-          AND p.sem = ps.sem
-          AND p.midSem = ps.midSem
-          AND p.semester = ps.semester
+          p.departmentname = ps.departmentname
+          AND p.educationlevel = ps.educationlevel
+          AND p.years::text = ps.years::text
+          AND p.sem::text = ps.sem::text
+          AND p."midSem"::text = ps.midsem::text
+          AND p.semester::text = ps.semester::text
       ) AS is_duplicate,
 
       -- Fetch matching titles as JSON array
@@ -31,12 +32,12 @@ exports.getPendingUploads = asyncHandler(async (req, res) => {
         SELECT COALESCE(json_agg(p.title), '[]'::json)
         FROM papers p
         WHERE
-          p.departmentName = ps.departmentName
-          AND p.educationLevel = ps.educationLevel
-          AND p.years = ps.years
-          AND p.sem = ps.sem
-          AND p.midSem = ps.midSem
-          AND p.semester = ps.semester
+          p.departmentname = ps.departmentname
+          AND p.educationlevel = ps.educationlevel
+          AND p.years::text = ps.years::text
+          AND p.sem::text = ps.sem::text
+          AND p."midSem"::text = ps.midsem::text
+          AND p.semester::text = ps.semester::text
       ) AS duplicate_titles
 
     FROM paper_submissions ps
@@ -63,11 +64,11 @@ exports.approvePaper = asyncHandler(async (req, res) => {
     // 1️ Insert into papers and get the new id
     const insertSql = `
       INSERT INTO papers
-      (departmentName, educationLevel, years, departmentYear, sem, midSem,
+      (departmentname, educationlevel, years, "departmentYear", sem, "midSem",
        title, url, semester)
       SELECT
-        departmentName, educationLevel, years, departmentYear, sem, midSem,
-        title, url, semester
+        departmentname, educationlevel, years, departmentyear, sem, midsem,
+        paper_name, url, semester
       FROM paper_submissions
       WHERE id = $1 AND (status = 'pending' OR status IS NULL)
       RETURNING id

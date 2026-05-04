@@ -152,7 +152,7 @@ exports.getUserSubmissions = asyncHandler(async (req, res) => {
   
   const sql = `
     SELECT 
-      id, title, departmentname, semester, status, admin_remark, created_at, url 
+      id, paper_name AS title, departmentname, semester, status, admin_remark, created_at, url 
     FROM paper_submissions 
     WHERE uploaded_by_user_id = $1 
     ORDER BY created_at DESC
