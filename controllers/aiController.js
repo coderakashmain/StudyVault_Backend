@@ -15,7 +15,7 @@ exports.getCredits = asyncHandler(async (req, res) => {
   if (rows.length === 0) return failure(res, "User not found", 404);
 
   return success(res, "Credits fetched", {
-    credits: rows[0].credits,
+    credits: rows[0].credits !== null ? rows[0].credits : 20,
     lastRenewal: rows[0].last_renewal
   });
 });
@@ -30,7 +30,7 @@ exports.useCredit = asyncHandler(async (req, res) => {
   const [rows] = await connectionUserdb.query("SELECT credits FROM users WHERE id = $1", [userId]);
   if (rows.length === 0) return failure(res, "User not found", 404);
 
-  const currentCredits = rows[0].credits;
+  const currentCredits = rows[0].credits !== null ? rows[0].credits : 20;
   if (currentCredits <= 0) return failure(res, "Insufficient credits", 403);
 
   // Update credits
@@ -52,7 +52,8 @@ exports.topupCredits = asyncHandler(async (req, res) => {
   const [rows] = await connectionUserdb.query("SELECT credits FROM users WHERE id = $1", [userId]);
   if (rows.length === 0) return failure(res, "User not found", 404);
 
-  const newCredits = rows[0].credits + amount;
+  const currentCredits = rows[0].credits !== null ? rows[0].credits : 0;
+  const newCredits = currentCredits + amount;
   await connectionUserdb.query("UPDATE users SET credits = $1 WHERE id = $2", [newCredits, userId]);
 
   return success(res, "Credits topped up", { credits: newCredits });
