@@ -1,4 +1,5 @@
 const connectionUserdb = require("../config/db");
+const asyncHandler = require("../middleware/asyncHandler");
 const axios = require('axios');
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
@@ -165,6 +166,44 @@ exports.paymentStatus = async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching payment status:', error);
-    res.status(500).json({ error: 'Failed to fetch payment status' });
+      res.status(500).json({ error: 'Failed to fetch payment status' });
   }
 };
+
+/**
+ * Save a new transaction log
+ */
+exports.saveTransaction = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { id, amount, type, status, details } = req.body;
+
+  if (!id || !amount || !type) return res.status(400).json({ error: "Missing transaction details" });
+
+  const sql = `
+    INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `;
+
+  await connectionUserdb.query(sql, [
+    userId, 
+    id, 
+    amount, 
+    type, 
+    status || 'SUCCESS', 
+    details || '', 
+    Date.now()
+  ]);
+
+  return res.status(200).json({ message: "Transaction logged successfully" });
+});
+
+/**
+ * Get user transaction history
+ */
+exports.getTransactionHistory = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const sql = "SELECT * FROM user_transactions WHERE user_id = $1 ORDER BY timestamp DESC";
+  const [rows] = await connectionUserdb.query(sql, [userId]);
+
+  return res.status(200).json({ success: true, data: rows });
+});
