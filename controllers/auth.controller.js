@@ -325,14 +325,15 @@ exports.googleAuth = async (req, res) => {
           maxAge: 1000 * 60 * 60 * 24, 
         });
 
-        res.json({ success: true, message: "Login successful", user: results[0] });
+        // Always include token in response body so the mobile app can use it
+        res.json({ success: true, message: "Login successful", token: authToken, user: results[0] });
       } else {
         const loginquery = "INSERT INTO users (google_id, firstname, gmail, picture) VALUES ($1, $2, $3, $4) RETURNING *";
         try {
           const [insertResults] = await connectionUserdb.query(loginquery, [sub, name, email, picture]);
           const user = insertResults[0];
 
-          const authToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+          const authToken = jwt.sign({ id: user.id, avatar_url: user.avatar_url }, JWT_SECRET, { expiresIn: "7d" });
 
           res.cookie("token", authToken, {
             httpOnly: true,
@@ -341,9 +342,11 @@ exports.googleAuth = async (req, res) => {
             maxAge: 1000 * 60 * 60 * 24, 
           });
 
+          // Always include token in response body so the mobile app can use it
           res.status(200).json({
             success: true,
             message: "Login successful",
+            token: authToken,
             user: {
               name: payload.name,
               email: payload.email,
