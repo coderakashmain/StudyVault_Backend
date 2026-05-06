@@ -328,7 +328,7 @@ exports.googleAuth = async (req, res) => {
         // Always include token in response body so the mobile app can use it
         res.json({ success: true, message: "Login successful", token: authToken, user: results[0] });
       } else {
-        const loginquery = "INSERT INTO users (google_id, firstname, gmail, picture) VALUES ($1, $2, $3, $4) RETURNING *";
+        const loginquery = "INSERT INTO users (google_id, firstname, gmail, picture, credits) VALUES ($1, $2, $3, $4, 20) RETURNING *";
         try {
           const [insertResults] = await connectionUserdb.query(loginquery, [sub, name, email, picture]);
           const user = insertResults[0];

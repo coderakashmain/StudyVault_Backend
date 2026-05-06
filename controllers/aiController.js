@@ -14,9 +14,20 @@ exports.getCredits = asyncHandler(async (req, res) => {
 
   if (rows.length === 0) return failure(res, "User not found", 404);
 
+  const row = rows[0];
+
+  // If credits is NULL (brand new user), initialize to 20 in DB so it persists
+  if (row.credits === null) {
+    await connectionUserdb.query(
+      "UPDATE users SET credits = 20, last_renewal = NOW() WHERE id = $1",
+      [userId]
+    );
+    return success(res, "Credits fetched", { credits: 20, lastRenewal: new Date() });
+  }
+
   return success(res, "Credits fetched", {
-    credits: rows[0].credits !== null ? rows[0].credits : 20,
-    lastRenewal: rows[0].last_renewal
+    credits: row.credits,
+    lastRenewal: row.last_renewal
   });
 });
 
