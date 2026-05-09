@@ -116,10 +116,20 @@ exports.signup = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const query = "INSERT INTO users (firstname, lastname, gmail, rollno, password, passwordcheck) VALUES($1, $2, $3, $4, $5, $6)";
-    await connectionUserdb.query(query, [firstname, lastname, gmail, rollno, hashedPassword, passwordcheck]);
+    const query = "INSERT INTO users (firstname, lastname, gmail, rollno, password, passwordcheck) VALUES($1, $2, $3, $4, $5, $6) RETURNING *";
+    const [insertResults] = await connectionUserdb.query(query, [firstname, lastname, gmail, rollno, hashedPassword, passwordcheck]);
+    const user = insertResults[0];
 
-    return res.status(201).json({ message: "User registered successfully" });
+    const token = jwt.sign({ id: user.id, avatar_url: user.avatar_url }, JWT_SECRET, { expiresIn: "7d" });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24, 
+    });
+
+    return res.status(201).json({ success: true, message: "User registered successfully", token });
   } catch (err) {
     console.error("Error during signup:", err);
     return res.status(500).json({ error: "Internal server error" });
