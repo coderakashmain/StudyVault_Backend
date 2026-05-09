@@ -15,6 +15,13 @@ exports.otpVerify = async (req, res) => {
   const { email } = req.body;
 
   try {
+    // Check if user already exists in the users table
+    const checkUserQuery = "SELECT * FROM users WHERE gmail = $1";
+    const [existingUsers] = await connectionUserdb.query(checkUserQuery, [email]);
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ error: "An account with this email already exists." });
+    }
+
     const checkQuery = "SELECT * FROM useremailverification WHERE gmail = $1";
     const [results] = await connectionUserdb.query(checkQuery, [email]);
 
