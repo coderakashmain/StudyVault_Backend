@@ -61,7 +61,7 @@ exports.otpVerifyConfirm = async (req, res) => {
 
   try {
     const checkQuery = "SELECT * FROM useremailverification WHERE gmail = $1 AND otp = $2";
-    const [results] = await connectionUserdb.query(checkQuery, [email, otp]);
+    const [results] = await connectionUserdb.query(checkQuery, [email, parseInt(otp, 10)]);
 
     if (results.length === 0) {
       return res.status(405).json({ error: "Invalid OTP or Invalid Email id" });
