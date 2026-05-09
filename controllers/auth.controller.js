@@ -72,8 +72,8 @@ exports.otpVerifyConfirm = async (req, res) => {
       return res.status(410).json({ error: "OTP expired" });
     }
 
-    const updateQuery = "UPDATE useremailverification SET otp = NULL, expireotp = NULL, gmail = NULL WHERE gmail = $1";
-    await connectionUserdb.query(updateQuery, [email]);
+    const deleteQuery = "DELETE FROM useremailverification WHERE gmail = $1";
+    await connectionUserdb.query(deleteQuery, [email]);
 
     return res.status(200).json({ message: "OTP verified and reset successfully" });
   } catch (err) {
