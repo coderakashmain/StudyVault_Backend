@@ -70,6 +70,7 @@ const commentRoutes = require('./routes/commentRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const miscRoutes = require('./routes/miscRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const collegeRoutes = require('./routes/collegeRoutes');
 
 // Mount Routes
 app.use('/api/user', userRouter);
@@ -82,5 +83,6 @@ app.use('/api/comments', commentRoutes);
 app.use('/api', paymentRoutes);
 app.use('/api', miscRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/colleges', collegeRoutes);
 
 module.exports = app;

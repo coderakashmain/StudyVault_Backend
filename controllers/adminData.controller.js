@@ -18,7 +18,7 @@ const otpStorage = new Map();
 exports.uploadPaper = async (req, res) => {
   const { renameFileback, filtetuploaddata } = req.body;
   const parsedData = JSON.parse(filtetuploaddata);
-  const { departmentName, educationLavel, session, dptyear, semormid, studentyear } = parsedData;
+  const { departmentName, educationLavel, session, dptyear, semormid, studentyear, college_id } = parsedData;
 
   try {
     const file = req.file;
@@ -68,11 +68,20 @@ exports.uploadPaper = async (req, res) => {
 
     const filepath = `https://drive.google.com/file/d/${fileId}/view`;
 
+    // Resolve college_id: use provided value or fall back to MPC Autonomous (id=1)
+    let resolvedCollegeId = college_id || null;
+    if (!resolvedCollegeId) {
+      const [mpcRows] = await connectionUserdb.query(
+        "SELECT id FROM colleges WHERE type = 'autonomous' ORDER BY id ASC LIMIT 1"
+      );
+      if (mpcRows.length > 0) resolvedCollegeId = mpcRows[0].id;
+    }
+
     const insertQuery =
-      "INSERT INTO papers (departmentName, educationLevel, years, departmentYear, sem, midSem, title, url, semester) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
+      "INSERT INTO papers (departmentName, educationLevel, years, departmentYear, sem, midSem, title, url, semester, college_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
 
     await connectionUserdb.query(insertQuery, [
-      departmentName, educationLavel, session, studentyear, sem, midsem, renameFileback, filepath, dptyear
+      departmentName, educationLavel, session, studentyear, sem, midsem, renameFileback, filepath, dptyear, resolvedCollegeId
     ]);
 
     const tempFilePath = path.join(__dirname, "../uploads", file.filename);

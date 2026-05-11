@@ -6,6 +6,12 @@ exports.filterPapers = async (req, res) => {
   let paramIndex = 1;
 
   try {
+    // Filter by college — if college_id provided, restrict to that college
+    if (req.query.college_id) {
+      query += ` AND college_id = $${paramIndex++}`;
+      params.push(req.query.college_id);
+    }
+
     if (req.query.departmentName) {
       query += ` AND departmentname = $${paramIndex++}`;
       params.push(req.query.departmentName);

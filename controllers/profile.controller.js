@@ -99,7 +99,12 @@ exports.getProfile = async (req, res) => {
     return res.status(400).json({ error: "Invalid user information in token" });
   }
 
-  const query = "SELECT * FROM users WHERE id = $1";
+  const query = `
+    SELECT u.*, c.name AS college_name, c.type AS college_type, c.city AS college_city
+    FROM users u
+    LEFT JOIN colleges c ON u.college_id = c.id
+    WHERE u.id = $1
+  `;
   try {
     const [results] = await connectionUserdb.query(query, [req.user.id]);
 
