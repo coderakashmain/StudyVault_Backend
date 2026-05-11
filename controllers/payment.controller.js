@@ -24,22 +24,18 @@ exports.createPaymentOrder = async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount provided' });
     }
 
-    // Check if user has an existing customer ID or phone
+    // Check if user has an existing email in profile for fallback
     const userId = req.user.id;
-    const [userRows] = await connectionUserdb.query("SELECT gmail, phone FROM users WHERE id = $1", [userId]);
-    let customerId = `USER_${userId}`;
+    const [userRows] = await connectionUserdb.query("SELECT gmail FROM users WHERE id = $1", [userId]);
     
     if (userRows.length > 0) {
       const user = userRows[0];
       if (!customerEmail && user.gmail) customerEmail = user.gmail;
-      if (!customerPhone && user.phone) customerPhone = user.phone;
     }
 
+    // customerPhone must come from the request body since it's not in the users table
     if (!customerEmail || !customerPhone) {
-      // Allow passing them in body if not in profile
-      if (!customerEmail || !customerPhone) {
-        return res.status(400).json({ error: 'Email and Phone are required for payment' });
-      }
+      return res.status(400).json({ error: 'Email and Phone are required for payment' });
     }
   
     // Ensure amount is a number and formatted correctly (2 decimal places)
