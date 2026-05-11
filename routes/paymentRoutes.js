@@ -6,7 +6,8 @@ const {
   paymentNotifyUrl,
   paymentStatus,
   saveTransaction,
-  getTransactionHistory
+  getTransactionHistory,
+  submitUpiUtr
 } = require('../controllers/payment.controller');
 const { verifyAuth } = require('../middleware/authHandler');
 
@@ -17,5 +18,8 @@ router.get('/payment-status/:orderId', paymentStatus);
 // History & Logging (Protected)
 router.get('/payment/history', verifyAuth, getTransactionHistory);
 router.post('/payment/log', verifyAuth, saveTransaction);
+
+// Free UPI Payment via UTR verification
+router.post('/payment/upi-utr', verifyAuth, submitUpiUtr);
 
 module.exports = router;

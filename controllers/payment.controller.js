@@ -315,3 +315,42 @@ exports.getTransactionHistory = asyncHandler(async (req, res) => {
   const [rows] = await connectionUserdb.query(sql, [userId]);
   res.status(200).json({ success: true, data: rows });
 });
+
+/**
+ * Submit UTR for UPI payment verification (Free payment method)
+ */
+exports.submitUpiUtr = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { utr, orderId, amount, credits } = req.body;
+
+  if (!utr || !orderId || !amount || !credits) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // Check if this UTR has already been submitted
+  const [existing] = await connectionUserdb.query(
+    "SELECT * FROM user_transactions WHERE details LIKE $1",
+    [`%UTR:${utr}%`]
+  );
+  if (existing.length > 0) {
+    return res.status(409).json({ error: 'This UTR has already been submitted. Contact support if you need help.' });
+  }
+
+  // Log as PENDING transaction
+  await connectionUserdb.query(
+    `INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      userId,
+      orderId,
+      amount,
+      'Credit Top-up',
+      'PENDING',
+      `UTR:${utr} | Method: UPI | Credits: ${credits}`,
+      Date.now()
+    ]
+  );
+
+  console.log(`UPI UTR submitted: ${utr} for user ${userId}, credits: ${credits}, order: ${orderId}`);
+  res.status(200).json({ success: true, message: 'UTR submitted for verification. Credits will be added shortly.' });
+});
