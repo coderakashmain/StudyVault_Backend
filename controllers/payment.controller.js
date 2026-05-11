@@ -321,11 +321,13 @@ exports.getTransactionHistory = asyncHandler(async (req, res) => {
  */
 exports.submitUpiUtr = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { utr, orderId, amount, credits } = req.body;
+  const { utr, orderId, amount, credits, type } = req.body;
 
-  if (!utr || !orderId || !amount || !credits) {
+  if (!utr || !orderId || !amount) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  const transactionType = type || 'Credit Top-up';
 
   // Check if this UTR has already been submitted
   const [existing] = await connectionUserdb.query(
@@ -337,20 +339,16 @@ exports.submitUpiUtr = asyncHandler(async (req, res) => {
   }
 
   // Log as PENDING transaction
+  const details = transactionType === 'Contribution'
+    ? `UTR:${utr} | Method: UPI | Contribution`
+    : `UTR:${utr} | Method: UPI | Credits: ${credits || 0}`;
+
   await connectionUserdb.query(
     `INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [
-      userId,
-      orderId,
-      amount,
-      'Credit Top-up',
-      'PENDING',
-      `UTR:${utr} | Method: UPI | Credits: ${credits}`,
-      Date.now()
-    ]
+    [userId, orderId, amount, transactionType, 'PENDING', details, Date.now()]
   );
 
-  console.log(`UPI UTR submitted: ${utr} for user ${userId}, credits: ${credits}, order: ${orderId}`);
-  res.status(200).json({ success: true, message: 'UTR submitted for verification. Credits will be added shortly.' });
+  console.log(`UPI UTR submitted: ${utr} for user ${userId}, type: ${transactionType}, order: ${orderId}`);
+  res.status(200).json({ success: true, message: 'UTR submitted for verification.' });
 });
