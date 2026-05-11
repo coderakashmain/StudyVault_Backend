@@ -42,15 +42,24 @@ exports.createPaymentOrder = async (req, res) => {
       }
     }
   
+    // Ensure amount is a number and formatted correctly (2 decimal places)
+    const formattedAmount = Number(amount).toFixed(2);
+
+    // Clean phone number (remove non-digits, ensure length)
+    const cleanPhone = customerPhone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
+  
     // Create a structured Order ID that includes the User ID for easy tracking in webhooks
     const orderId = `SV_${req.user.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     const data = {
-      order_amount: amount,
+      order_amount: formattedAmount,
       order_currency: 'INR',
       customer_details: {
         customer_email: customerEmail,  
-        customer_phone: customerPhone,  
+        customer_phone: cleanPhone,  
         customer_id: `USER_${req.user.id}`,        
       },
       order_meta: {
@@ -60,6 +69,8 @@ exports.createPaymentOrder = async (req, res) => {
       },
       order_id: orderId,
     };
+
+    console.log("Initiating Cashfree Order:", orderId, "Amount:", formattedAmount);
 
     const response = await axios.post(CASHFREE_URL, data, {
       headers: {
@@ -76,8 +87,13 @@ exports.createPaymentOrder = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Cashfree Error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to create payment order' });
+    const errorData = error.response?.data || error.message;
+    console.error('Cashfree API Error:', JSON.stringify(errorData, null, 2));
+    
+    res.status(500).json({ 
+      error: 'Failed to create payment order',
+      details: error.response?.data?.message || error.message 
+    });
   }
 };
 
