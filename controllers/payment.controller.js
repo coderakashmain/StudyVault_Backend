@@ -124,11 +124,22 @@ exports.paymentNotifyUrl = async (req, res) => {
       const orderId = order.order_id;
       const amount = order.order_amount;
       
-      // Extract user ID from order ID (Format: SV_USERID_TIMESTAMP_RAND)
+      // Determine transaction type and details
+      let transactionType = 'Contribution';
+      let creditAmount = 0;
+      let userId = null;
+
       const parts = orderId.split('_');
-      if (parts[0] === 'SV' && parts[1]) {
-        const userId = parts[1];
-        
+      if (parts[0] === 'SV') {
+        userId = parts[1];
+        transactionType = 'Contribution';
+      } else if (parts[0] === 'CR') {
+        userId = parts[1];
+        creditAmount = parseInt(parts[2]) || 0;
+        transactionType = 'Credit Top-up';
+      }
+
+      if (userId) {
         // Log the transaction to DB if not already present
         const checkSql = "SELECT * FROM user_transactions WHERE transaction_id = $1";
         const [existing] = await connectionUserdb.query(checkSql, [orderId]);
@@ -142,12 +153,22 @@ exports.paymentNotifyUrl = async (req, res) => {
             userId,
             orderId,
             amount,
-            'Contribution',
+            transactionType,
             'SUCCESS',
-            `Method: ${payment.payment_group || 'UPI'}`,
+            transactionType === 'Credit Top-up' ? `Method: ${payment.payment_group} - Credits: ${creditAmount}` : `Method: ${payment.payment_group || 'UPI'}`,
             Date.now()
           ]);
-          console.log(`Transaction ${orderId} logged via webhook for user ${userId}`);
+
+          // If it's a credit purchase, update the user's credits balance
+          if (transactionType === 'Credit Top-up' && creditAmount > 0) {
+            await connectionUserdb.query(
+              "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2",
+              [creditAmount, userId]
+            );
+            console.log(`Successfully added ${creditAmount} credits to user ${userId} via webhook`);
+          }
+
+          console.log(`Transaction ${orderId} (${transactionType}) logged via webhook for user ${userId}`);
         }
       }
     }
@@ -179,11 +200,25 @@ exports.paymentStatus = async (req, res) => {
     const isPaid = orderData.order_status === "PAID";
 
     if (isPaid) {
-      // Self-healing: Ensure transaction is logged in DB if webhook was missed
+      // Determine transaction type and details based on order prefix
+      let transactionType = 'Contribution';
+      let creditAmount = 0;
+      let userId = null;
+
       const parts = orderId.split('_');
-      if (parts[0] === 'SV' && parts[1]) {
-        const userId = parts[1];
-        const [existing] = await connectionUserdb.query("SELECT * FROM user_transactions WHERE transaction_id = $1", [orderId]);
+      if (parts[0] === 'SV') {
+        userId = parts[1];
+        transactionType = 'Contribution';
+      } else if (parts[0] === 'CR') {
+        userId = parts[1];
+        creditAmount = parseInt(parts[2]) || 0;
+        transactionType = 'Credit Top-up';
+      }
+
+      if (userId) {
+        // Log the transaction to DB if not already present
+        const checkSql = "SELECT * FROM user_transactions WHERE transaction_id = $1";
+        const [existing] = await connectionUserdb.query(checkSql, [orderId]);
         
         if (existing.length === 0) {
           const logSql = `
@@ -194,12 +229,22 @@ exports.paymentStatus = async (req, res) => {
             userId,
             orderId,
             orderData.order_amount,
-            'Contribution',
+            transactionType,
             'SUCCESS',
-            'Verified via Status Check',
+            transactionType === 'Credit Top-up' ? `Added ${creditAmount} credits` : 'Verified via Status Check',
             Date.now()
           ]);
-          console.log(`Transaction ${orderId} logged via status check fallback`);
+
+          // If it's a credit purchase, update the user's credits balance
+          if (transactionType === 'Credit Top-up' && creditAmount > 0) {
+            await connectionUserdb.query(
+              "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2",
+              [creditAmount, userId]
+            );
+            console.log(`Successfully added ${creditAmount} credits to user ${userId} via status check`);
+          }
+
+          console.log(`Transaction ${orderId} (${transactionType}) logged via status check fallback`);
         }
       }
 
