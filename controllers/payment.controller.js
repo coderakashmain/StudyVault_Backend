@@ -19,24 +19,26 @@ const transporter = nodemailer.createTransport({
 exports.createPaymentOrder = async (req, res) => {
   const { amount, customerEmail, customerPhone, redirect_url } = req.body;
 
-  if (!amount || !customerEmail || !customerPhone) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  let customerId;
-
   try {
-    const quary = "SELECT * FROM customers WHERE customer_phone = $1";
-    const [results] = await connectionUserdb.query(quary, [customerPhone]);
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount provided' });
+    }
 
-    if (results.length > 0) {
-       customerId = results[0].customer_id;
-    } else {
-      customerId = `cust_${Date.now()}`;
-      try {
-        const addquary = "INSERT INTO customers (customer_id, customer_phone) VALUES ($1, $2)";
-        await connectionUserdb.query(addquary, [customerId, customerPhone]);
-      } catch (err) {
-        console.error("update cutomer err", err);
+    // Check if user has an existing customer ID or phone
+    const userId = req.user.id;
+    const [userRows] = await connectionUserdb.query("SELECT gmail, phone FROM users WHERE id = $1", [userId]);
+    let customerId = `USER_${userId}`;
+    
+    if (userRows.length > 0) {
+      const user = userRows[0];
+      if (!customerEmail && user.gmail) customerEmail = user.gmail;
+      if (!customerPhone && user.phone) customerPhone = user.phone;
+    }
+
+    if (!customerEmail || !customerPhone) {
+      // Allow passing them in body if not in profile
+      if (!customerEmail || !customerPhone) {
+        return res.status(400).json({ error: 'Email and Phone are required for payment' });
       }
     }
   
@@ -53,40 +55,38 @@ exports.createPaymentOrder = async (req, res) => {
       },
       order_meta: {
         notify_url: `${req.protocol}://${req.get('host')}/api/payment-donate-us/notifyurl`, 
-        return_url: `${redirect_url}?order_id={order_id}&tx_status={tx_status}`,
+        return_url: `https://studyvault.space/payment-success?order_id={order_id}`,
         payment_methods: "upi,cc,dc,nb,app", 
       },
       order_id: orderId,
     };
 
-    try {
-      const response = await axios.post(CASHFREE_URL, data, {
-        headers: {
-          "Content-Type": "application/json",
-          "accept": "application/json",
-          "x-client-id": APP_ID_CASHFREE,   
-          "x-client-secret": SECRET_KEY_CASHFREE,
-          'x-api-version': "2023-08-01",
-        }
-      });
+    const response = await axios.post(CASHFREE_URL, data, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-client-id": APP_ID_CASHFREE,   
+        "x-client-secret": SECRET_KEY_CASHFREE,
+        'x-api-version': "2023-08-01",
+      }
+    });
 
-      const paymentSessionId = response.data.payment_session_id;
-      const orderid = response.data.order_id;
-      res.json({ paymentSessionId, orderid });
-    } catch (error) {
-      console.error('Error creating payment order:', error);
-      res.status(500).send('Error creating payment order');
-    }
-  } catch (err) {
-    console.error("Number findding error", err);
-    res.status(500).send('Error in fetching customer data');
+    res.status(200).json({
+      paymentSessionId: response.data.payment_session_id,
+      orderid: response.data.order_id,
+    });
+
+  } catch (error) {
+    console.error('Cashfree Error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to create payment order' });
   }
 };
 
-const verifySignature = (bodyString, receivedSignature) => {
-  const hmac = crypto.createHmac('sha256', SECRET_KEY_CASHFREE);
-  hmac.update(bodyString); 
-  const calculatedSignature = hmac.digest('base64');
+const verifySignature = (rawBody, receivedSignature) => {
+  const secretKey = SECRET_KEY_CASHFREE;
+  const calculatedSignature = crypto
+    .createHmac('sha256', secretKey)
+    .update(rawBody)
+    .digest('base64');
   return receivedSignature === calculatedSignature;
 };
 
@@ -149,6 +149,7 @@ exports.paymentNotifyUrl = async (req, res) => {
 
 exports.paymentStatus = async (req, res) => {
   const { orderId } = req.params;
+  console.log("Checking payment status for:", orderId);
  
   try {
     const response = await axios.get(`${CASHFREE_URL}/${orderId}`, {
@@ -158,52 +159,45 @@ exports.paymentStatus = async (req, res) => {
         "x-client-id": APP_ID_CASHFREE,   
         "x-client-secret": SECRET_KEY_CASHFREE,
         'x-api-version': "2023-08-01",
-      }
+      },
+      timeout: 10000 // 10s timeout for Cashfree API
     });
 
-    if (response.data && response.data.order_status) {
-      if(response.data.order_status === "PAID"){
-        const usermail = response.data.customer_details.customer_email;
-       
+    const orderData = response.data;
+    const isPaid = orderData.order_status === "PAID";
+
+    if (isPaid) {
+      const usermail = orderData.customer_details.customer_email;
+      if (usermail) {
         const mailOptions = {
           to: usermail,
           from: process.env.EMAIL_USER,
-          subject: "StudyVault Campus Payment verification Message .",
+          subject: "StudyVault Campus - Contribution Received!",
           html: `
-           <html>
-            <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
-              <div style="max-width: 600px; margin: auto; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <h1 style="text-align: center; color: #4CAF50;">🎉 Payment Successful!</h1>
-                <p style="text-align: center; font-size: 1.1rem; color: #555;">Thank you for your payment. Here are the details:</p>
-                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                <h2 style="font-size: 1.3rem;">Order Id  : <span style="font-size: 1.1rem; font-weight: 600; color: #333;">${orderId}</span></h2>
-                <h2 style="font-size: 1.3rem;">Payment Status : <span style="font-size: 1.1rem; font-weight: 600; color: #333;">PAID</span></h2>
-                <h2 style="font-size: 1.3rem;">Order amount : <span style="font-size: 1.1rem; font-weight: 500; color: #666;">${response.data.order_amount}</span></h2>
-                <div style="background-color: #f1f1f1; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                  <p style="font-size: 1rem; color: #444;">Your payment has been successfully processed. Thank you for supporting Us. If you have any questions, feel free to reach out to our support team.</p>
-                </div>
-                <p style="font-size: 0.9rem; color: #777;">This message is related to your payment through StudyVault Campus.</p>
-                <h4 style="margin-top: 30px; color: #333;">Best regards,</h4>
-                <h4 style="color: #4CAF50;">The StudyVault Campus Team</h4>
-              </div>
-            </body>
-          </html>
-          `,
+            <div style="font-family: sans-serif; padding: 20px;">
+              <h1 style="color: #4CAF50;">🎉 Thank You!</h1>
+              <p>We've received your contribution of <b>₹${orderData.order_amount}</b>.</p>
+              <p>Order ID: <b>${orderId}</b></p>
+              <p>Your support helps us keep the platform free for all students.</p>
+            </div>
+          `
         };
-      
-        await transporter.sendMail(mailOptions);
+        transporter.sendMail(mailOptions).catch(e => console.error("Email error:", e));
       }
-
-      res.status(200).json({
-        orderId: response.data.order_id,
-        status: response.data.order_status,
-      });
-    } else {
-      res.status(400).json({ error: 'Invalid response from Cashfree' });
     }
+
+    return res.status(200).json({
+      status: orderData.order_status,
+      amount: orderData.order_amount,
+      isSuccess: isPaid
+    });
+
   } catch (error) {
-    console.error('Error fetching payment status:', error);
-      res.status(500).json({ error: 'Failed to fetch payment status' });
+    console.error('Cashfree Status Error:', error.response?.data || error.message);
+    return res.status(500).json({ 
+      error: "Failed to verify payment with gateway",
+      details: error.response?.data || error.message
+    });
   }
 };
 
@@ -231,16 +225,12 @@ exports.saveTransaction = asyncHandler(async (req, res) => {
     Date.now()
   ]);
 
-  return res.status(200).json({ message: "Transaction logged successfully" });
+  res.status(200).json({ success: true });
 });
 
-/**
- * Get user transaction history
- */
 exports.getTransactionHistory = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const sql = "SELECT * FROM user_transactions WHERE user_id = $1 ORDER BY timestamp DESC";
   const [rows] = await connectionUserdb.query(sql, [userId]);
-
-  return res.status(200).json({ success: true, data: rows });
+  res.status(200).json(rows);
 });
