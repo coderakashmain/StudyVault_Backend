@@ -179,6 +179,30 @@ exports.paymentStatus = async (req, res) => {
     const isPaid = orderData.order_status === "PAID";
 
     if (isPaid) {
+      // Self-healing: Ensure transaction is logged in DB if webhook was missed
+      const parts = orderId.split('_');
+      if (parts[0] === 'SV' && parts[1]) {
+        const userId = parts[1];
+        const [existing] = await connectionUserdb.query("SELECT * FROM user_transactions WHERE transaction_id = $1", [orderId]);
+        
+        if (existing.length === 0) {
+          const logSql = `
+            INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `;
+          await connectionUserdb.query(logSql, [
+            userId,
+            orderId,
+            orderData.order_amount,
+            'Contribution',
+            'SUCCESS',
+            'Verified via Status Check',
+            Date.now()
+          ]);
+          console.log(`Transaction ${orderId} logged via status check fallback`);
+        }
+      }
+
       const usermail = orderData.customer_details.customer_email;
       if (usermail) {
         const mailOptions = {
@@ -244,5 +268,5 @@ exports.getTransactionHistory = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const sql = "SELECT * FROM user_transactions WHERE user_id = $1 ORDER BY timestamp DESC";
   const [rows] = await connectionUserdb.query(sql, [userId]);
-  res.status(200).json(rows);
+  res.status(200).json({ success: true, data: rows });
 });
