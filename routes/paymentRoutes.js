@@ -10,7 +10,7 @@ const {
 } = require('../controllers/payment.controller');
 const { verifyAuth } = require('../middleware/authHandler');
 
-router.post('/create-payment-order', createPaymentOrder);
+router.post('/create-payment-order', verifyAuth, createPaymentOrder);
 router.post('/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }), paymentNotifyUrl);
 router.get('/payment-status/:orderId', paymentStatus);
 

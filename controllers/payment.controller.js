@@ -40,7 +40,8 @@ exports.createPaymentOrder = async (req, res) => {
       }
     }
   
-    const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    // Create a structured Order ID that includes the User ID for easy tracking in webhooks
+    const orderId = `SV_${req.user.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     const data = {
       order_amount: amount,
@@ -48,11 +49,11 @@ exports.createPaymentOrder = async (req, res) => {
       customer_details: {
         customer_email: customerEmail,  
         customer_phone: customerPhone,  
-        customer_id: customerId,        
+        customer_id: `USER_${req.user.id}`,        
       },
       order_meta: {
         notify_url: `${req.protocol}://${req.get('host')}/api/payment-donate-us/notifyurl`, 
-        return_url: `${redirect_url}?order_id={order_id}&tx_status={txStatus}`,
+        return_url: `${redirect_url}?order_id={order_id}&tx_status={tx_status}`,
         payment_methods: "upi,cc,dc,nb,app", 
       },
       order_id: orderId,
@@ -89,25 +90,61 @@ const verifySignature = (bodyString, receivedSignature) => {
   return receivedSignature === calculatedSignature;
 };
 
-exports.paymentNotifyUrl = (req, res) => {
-  const rawBody = req.body.toString('utf8');
-  req.rawBody = rawBody; 
-  
-  const signature = req.headers['x-webhook-signature'];  
+exports.paymentNotifyUrl = async (req, res) => {
+  try {
+    const rawBody = req.body.toString('utf8');
+    const signature = req.headers['x-webhook-signature'];  
 
-  if (!signature) {
-    return res.status(400).send('Signature missing');
+    if (!signature) {
+      return res.status(400).send('Signature missing');
+    }
+
+    if (!verifySignature(rawBody, signature)) {
+      console.error('Webhook Signature Verification Failed');
+      return res.status(400).send('Invalid Signature');
+    }
+
+    const payload = JSON.parse(rawBody);
+    console.log("Cashfree Webhook Received:", payload.event_type);
+
+    if (payload.event_type === 'ORDER_PAID') {
+      const { order, payment } = payload.data;
+      const orderId = order.order_id;
+      const amount = order.order_amount;
+      
+      // Extract user ID from order ID (Format: SV_USERID_TIMESTAMP_RAND)
+      const parts = orderId.split('_');
+      if (parts[0] === 'SV' && parts[1]) {
+        const userId = parts[1];
+        
+        // Log the transaction to DB if not already present
+        const checkSql = "SELECT * FROM user_transactions WHERE transaction_id = $1";
+        const [existing] = await connectionUserdb.query(checkSql, [orderId]);
+        
+        if (existing.length === 0) {
+          const logSql = `
+            INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `;
+          await connectionUserdb.query(logSql, [
+            userId,
+            orderId,
+            amount,
+            'Contribution',
+            'SUCCESS',
+            `Method: ${payment.payment_group || 'UPI'}`,
+            Date.now()
+          ]);
+          console.log(`Transaction ${orderId} logged via webhook for user ${userId}`);
+        }
+      }
+    }
+
+    res.status(200).send('Notification received successfully');
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).send('Internal Server Error');
   }
-
-  if (!verifySignature(rawBody, signature)) {
-    return res.status(400).send('Invalid Signature');
-  }
-
-  if (!rawBody) {
-    return res.status(400).send('Invalid request, raw body missing');
-  }
-
-  res.status(200).send('Notification received successfully');
 };
 
 exports.paymentStatus = async (req, res) => {
