@@ -31,6 +31,14 @@ app.use(cors({
   credentials: true
 }));
 
+// ── WEBHOOK MUST be registered BEFORE body parsers so it gets the raw buffer ──
+const { paymentNotifyUrl } = require('./controllers/payment.controller');
+app.post(
+  '/api/payment-donate-us/notifyurl',
+  express.raw({ type: 'application/json' }),
+  paymentNotifyUrl
+);
+
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
