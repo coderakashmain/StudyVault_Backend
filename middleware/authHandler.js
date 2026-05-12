@@ -55,7 +55,12 @@ const loginCheck = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const query = "SELECT id, firstname, lastname, gmail, rollno, avatar_url FROM users WHERE id = $1";
+    const query = `
+      SELECT u.id, u.firstname, u.lastname, u.gmail, u.rollno, u.avatar_url, u.college_id, c.name as college_name 
+      FROM users u 
+      LEFT JOIN colleges c ON u.college_id = c.id 
+      WHERE u.id = $1
+    `;
     const [user] = await connectionUserdb.query(query, [decoded.id]);
     const userData = user[0];
     if (!userData) return failure(res, "Unauthorized: User not found", 401);
@@ -68,6 +73,8 @@ const loginCheck = asyncHandler(async (req, res, next) => {
       lastname: userData.lastname,
       gmail: userData.gmail,
       rollno: userData.rollno,
+      college_id: userData.college_id,
+      college_name: userData.college_name,
     });
   } catch (err) {
     return failure(res, `Unauthorized: ${err.message}`, 401);

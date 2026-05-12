@@ -7,7 +7,7 @@ const {
   paymentStatus,
   saveTransaction,
   getTransactionHistory,
-  submitUpiUtr
+  // submitUpiUtr, // commented out - using Cashfree gateway instead
 } = require('../controllers/payment.controller');
 const { verifyAuth } = require('../middleware/authHandler');
 
@@ -19,7 +19,7 @@ router.get('/payment-status/:orderId', paymentStatus);
 router.get('/payment/history', verifyAuth, getTransactionHistory);
 router.post('/payment/log', verifyAuth, saveTransaction);
 
-// Free UPI Payment via UTR verification
-router.post('/payment/upi-utr', verifyAuth, submitUpiUtr);
+// Free UPI Payment via UTR verification (commented out - using Cashfree gateway instead)
+// router.post('/payment/upi-utr', verifyAuth, submitUpiUtr);
 
 module.exports = router;
