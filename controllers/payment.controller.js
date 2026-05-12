@@ -209,13 +209,15 @@ exports.paymentStatus = async (req, res) => {
 
       const parts = orderId.split("_");
       if (parts[0] === "SV") {
-        userId = parts[1];
+        userId = parseInt(parts[1], 10);
         transactionType = "Contribution";
       } else if (parts[0] === "CR") {
-        userId = parts[1];
-        creditAmount = parseInt(parts[2]) || 0;
+        userId = parseInt(parts[1], 10);
+        creditAmount = parseInt(parts[2], 10) || 0;
         transactionType = "Credit Top-up";
       }
+
+      console.log(`[paymentStatus] userId=${userId} (${typeof userId}), credits=${creditAmount}, type=${transactionType}`);
 
       if (userId) {
         // Log the transaction to DB if not already present
@@ -243,28 +245,33 @@ exports.paymentStatus = async (req, res) => {
         }
 
         // ── ALWAYS check if credits need to be added (independent of transaction log) ──
-        // This handles the case where the webhook inserted the record but credits weren't delivered
         if (transactionType === "Credit Top-up" && creditAmount > 0) {
-          // Check if credits were already added by looking at the user's credited orders
-          const [creditedOrder] = await connectionUserdb.query(
-            "SELECT id FROM user_transactions WHERE transaction_id = $1 AND status = 'CREDITED'",
-            [orderId]
-          );
+          try {
+            const [creditedOrder] = await connectionUserdb.query(
+              "SELECT id FROM user_transactions WHERE transaction_id = $1 AND status = 'CREDITED'",
+              [orderId]
+            );
+            console.log(`[paymentStatus] creditedOrder rows: ${creditedOrder.length}`);
 
-          if (creditedOrder.length === 0) {
-            // Add credits to user account
-            await connectionUserdb.query(
-              "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2",
-              [creditAmount, userId]
-            );
-            // Mark the transaction as CREDITED to prevent double-credit
-            await connectionUserdb.query(
-              "UPDATE user_transactions SET status = 'CREDITED', details = $1 WHERE transaction_id = $2",
-              [`Added ${creditAmount} credits`, orderId]
-            );
-            console.log(`Successfully added ${creditAmount} credits to user ${userId} via status check`);
-          } else {
-            console.log(`Credits for order ${orderId} already delivered — skipping.`);
+            if (creditedOrder.length === 0) {
+              // Add credits to user account
+              const updateResult = await connectionUserdb.query(
+                "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2 RETURNING id, credits",
+                [creditAmount, userId]
+              );
+              console.log(`[paymentStatus] UPDATE result:`, JSON.stringify(updateResult[0]));
+
+              // Mark the transaction as CREDITED to prevent double-credit
+              await connectionUserdb.query(
+                "UPDATE user_transactions SET status = 'CREDITED', details = $1 WHERE transaction_id = $2",
+                [`Added ${creditAmount} credits`, orderId]
+              );
+              console.log(`[paymentStatus] Successfully added ${creditAmount} credits to user ${userId}`);
+            } else {
+              console.log(`[paymentStatus] Credits for order ${orderId} already delivered — skipping.`);
+            }
+          } catch (creditErr) {
+            console.error(`[paymentStatus] CREDIT UPDATE FAILED for user ${userId}:`, creditErr.message);
           }
         }
       }
@@ -304,6 +311,90 @@ exports.paymentStatus = async (req, res) => {
       error: "Failed to verify payment with gateway",
       details: error.response?.data || error.message,
     });
+  }
+};
+
+/**
+ * Authenticated payment status check — uses req.user.id directly (no order ID parsing risk).
+ * Called by the app after WebView redirect to safely add credits.
+ */
+exports.paymentStatusAuth = async (req, res) => {
+  const { orderId } = req.params;
+  const userId = req.user.id; // Guaranteed integer from auth middleware
+  console.log(`[paymentStatusAuth] Checking ${orderId} for authenticated user ${userId}`);
+
+  try {
+    const response = await axios.get(`${CASHFREE_URL}/${orderId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+        "x-client-id": APP_ID_CASHFREE,
+        "x-client-secret": SECRET_KEY_CASHFREE,
+        "x-api-version": "2023-08-01",
+      },
+      timeout: 10000,
+    });
+
+    const orderData = response.data;
+    const isPaid = orderData.order_status === "PAID";
+
+    if (!isPaid) {
+      return res.status(200).json({ isSuccess: false, status: orderData.order_status });
+    }
+
+    // Parse credit amount from order ID: CR_{userId}_{credits}_{ts}_{rand}
+    const parts = orderId.split("_");
+    const isCreditsOrder = parts[0] === "CR";
+    const creditAmount = isCreditsOrder ? parseInt(parts[2], 10) || 0 : 0;
+
+    console.log(`[paymentStatusAuth] isPaid=true, isCreditsOrder=${isCreditsOrder}, creditAmount=${creditAmount}`);
+
+    if (isCreditsOrder && creditAmount > 0) {
+      // Check if already credited
+      const [alreadyCredited] = await connectionUserdb.query(
+        "SELECT id FROM user_transactions WHERE transaction_id = $1 AND status = 'CREDITED'",
+        [orderId]
+      );
+
+      if (alreadyCredited.length === 0) {
+        // Add credits using authenticated userId — 100% reliable
+        const [updated] = await connectionUserdb.query(
+          "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2 RETURNING credits",
+          [creditAmount, userId]
+        );
+        const newBalance = updated[0]?.credits;
+        console.log(`[paymentStatusAuth] Added ${creditAmount} credits to user ${userId}. New balance: ${newBalance}`);
+
+        // Log or update transaction record
+        const [existing] = await connectionUserdb.query(
+          "SELECT id FROM user_transactions WHERE transaction_id = $1",
+          [orderId]
+        );
+        if (existing.length === 0) {
+          await connectionUserdb.query(
+            `INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [userId, orderId, orderData.order_amount, "Credit Top-up", "CREDITED", `Added ${creditAmount} credits`, Date.now()]
+          );
+        } else {
+          await connectionUserdb.query(
+            "UPDATE user_transactions SET status = 'CREDITED', details = $1 WHERE transaction_id = $2",
+            [`Added ${creditAmount} credits`, orderId]
+          );
+        }
+
+        return res.status(200).json({ isSuccess: true, credits: newBalance, added: creditAmount });
+      } else {
+        console.log(`[paymentStatusAuth] Credits already delivered for ${orderId}`);
+        const [userRow] = await connectionUserdb.query("SELECT credits FROM users WHERE id = $1", [userId]);
+        return res.status(200).json({ isSuccess: true, credits: userRow[0]?.credits, added: 0, alreadyDelivered: true });
+      }
+    }
+
+    return res.status(200).json({ isSuccess: true });
+  } catch (error) {
+    console.error(`[paymentStatusAuth] Error:`, error.response?.data || error.message);
+    return res.status(500).json({ error: "Failed to verify payment", details: error.message });
   }
 };
 

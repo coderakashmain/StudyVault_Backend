@@ -5,15 +5,16 @@ const {
   createPaymentOrder,
   paymentNotifyUrl,
   paymentStatus,
+  paymentStatusAuth,
   saveTransaction,
   getTransactionHistory,
-  // submitUpiUtr, // commented out - using Cashfree gateway instead
 } = require('../controllers/payment.controller');
 const { verifyAuth } = require('../middleware/authHandler');
 
 router.post('/create-payment-order', verifyAuth, createPaymentOrder);
 router.post('/payment-donate-us/notifyurl', express.raw({ type: 'application/json' }), paymentNotifyUrl);
-router.get('/payment-status/:orderId', paymentStatus);
+router.get('/payment-status/:orderId', paymentStatus);                        // unauthenticated (legacy)
+router.get('/payment-status-auth/:orderId', verifyAuth, paymentStatusAuth);  // authenticated (preferred)
 
 // History & Logging (Protected)
 router.get('/payment/history', verifyAuth, getTransactionHistory);
