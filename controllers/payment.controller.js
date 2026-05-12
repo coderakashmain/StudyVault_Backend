@@ -141,8 +141,7 @@ exports.paymentNotifyUrl = async (req, res) => {
 
       if (userId) {
         // Log the transaction to DB if not already present
-        const checkSql =
-          "SELECT * FROM user_transactions WHERE transaction_id = $1";
+        const checkSql = "SELECT * FROM user_transactions WHERE transaction_id = $1";
         const [existing] = await connectionUserdb.query(checkSql, [orderId]);
 
         if (existing.length === 0) {
@@ -155,7 +154,7 @@ exports.paymentNotifyUrl = async (req, res) => {
             orderId,
             amount,
             transactionType,
-            "SUCCESS",
+            transactionType === "Credit Top-up" ? "CREDITED" : "SUCCESS",
             transactionType === "Credit Top-up"
               ? `Method: ${payment.payment_group} - Credits: ${creditAmount}`
               : `Method: ${payment.payment_group || "UPI"}`,
@@ -168,14 +167,10 @@ exports.paymentNotifyUrl = async (req, res) => {
               "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2",
               [creditAmount, userId],
             );
-            console.log(
-              `Successfully added ${creditAmount} credits to user ${userId} via webhook`,
-            );
+            console.log(`Successfully added ${creditAmount} credits to user ${userId} via webhook`);
           }
 
-          console.log(
-            `Transaction ${orderId} (${transactionType}) logged via webhook for user ${userId}`,
-          );
+          console.log(`Transaction ${orderId} (${transactionType}) logged via webhook for user ${userId}`);
         }
       }
     }
@@ -224,11 +219,11 @@ exports.paymentStatus = async (req, res) => {
 
       if (userId) {
         // Log the transaction to DB if not already present
-        const checkSql =
-          "SELECT * FROM user_transactions WHERE transaction_id = $1";
+        const checkSql = "SELECT * FROM user_transactions WHERE transaction_id = $1";
         const [existing] = await connectionUserdb.query(checkSql, [orderId]);
 
         if (existing.length === 0) {
+          // First time seeing this order — insert the transaction record
           const logSql = `
             INSERT INTO user_transactions (user_id, transaction_id, amount, type, status, details, timestamp)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -244,21 +239,33 @@ exports.paymentStatus = async (req, res) => {
               : "Verified via Status Check",
             Date.now(),
           ]);
+          console.log(`Transaction ${orderId} (${transactionType}) logged via status check fallback`);
+        }
 
-          // If it's a credit purchase, update the user's credits balance
-          if (transactionType === "Credit Top-up" && creditAmount > 0) {
+        // ── ALWAYS check if credits need to be added (independent of transaction log) ──
+        // This handles the case where the webhook inserted the record but credits weren't delivered
+        if (transactionType === "Credit Top-up" && creditAmount > 0) {
+          // Check if credits were already added by looking at the user's credited orders
+          const [creditedOrder] = await connectionUserdb.query(
+            "SELECT id FROM user_transactions WHERE transaction_id = $1 AND status = 'CREDITED'",
+            [orderId]
+          );
+
+          if (creditedOrder.length === 0) {
+            // Add credits to user account
             await connectionUserdb.query(
               "UPDATE users SET credits = COALESCE(credits, 0) + $1 WHERE id = $2",
-              [creditAmount, userId],
+              [creditAmount, userId]
             );
-            console.log(
-              `Successfully added ${creditAmount} credits to user ${userId} via status check`,
+            // Mark the transaction as CREDITED to prevent double-credit
+            await connectionUserdb.query(
+              "UPDATE user_transactions SET status = 'CREDITED', details = $1 WHERE transaction_id = $2",
+              [`Added ${creditAmount} credits`, orderId]
             );
+            console.log(`Successfully added ${creditAmount} credits to user ${userId} via status check`);
+          } else {
+            console.log(`Credits for order ${orderId} already delivered — skipping.`);
           }
-
-          console.log(
-            `Transaction ${orderId} (${transactionType}) logged via status check fallback`,
-          );
         }
       }
 
