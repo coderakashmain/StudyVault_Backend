@@ -70,7 +70,7 @@ exports.generateNotes = asyncHandler(async (req, res) => {
     }
 
     // Call Gemini API
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const imagePart = fileToGenerativePart(file.buffer, file.mimetype);
 
     const result = await model.generateContent([promptText, imagePart]);
