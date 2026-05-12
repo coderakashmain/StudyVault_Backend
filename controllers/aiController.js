@@ -9,8 +9,12 @@ const { success, failure } = require("../utils/response");
  */
 exports.getCredits = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  console.log(`[getCredits] Incoming request for userId: ${userId} (type: ${typeof userId})`);
+  
   const sql = "SELECT credits, last_renewal FROM users WHERE id = $1";
   const [rows] = await connectionUserdb.query(sql, [userId]);
+  
+  console.log(`[getCredits] DB result for userId ${userId}:`, rows);
 
   if (rows.length === 0) return failure(res, "User not found", 404);
 
@@ -36,9 +40,12 @@ exports.getCredits = asyncHandler(async (req, res) => {
  */
 exports.useCredit = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  console.log(`[useCredit] Incoming request for userId: ${userId} (type: ${typeof userId})`);
   
   // Get current credits
   const [rows] = await connectionUserdb.query("SELECT credits FROM users WHERE id = $1", [userId]);
+  console.log(`[useCredit] DB current result for userId ${userId}:`, rows);
+  
   if (rows.length === 0) return failure(res, "User not found", 404);
 
   const currentCredits = rows[0].credits !== null ? rows[0].credits : 20;
