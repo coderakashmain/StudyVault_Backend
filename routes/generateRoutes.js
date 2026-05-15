@@ -15,5 +15,6 @@ const upload = multer({
 router.use(verifyAuth);
 
 router.post('/notes', upload.single('file'), generateController.generateNotes);
+router.get('/history', generateController.getNotesHistory);
 
 module.exports = router;
