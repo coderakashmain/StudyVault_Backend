@@ -13,6 +13,7 @@ const server = require('http').createServer(app);
 const allowedOrigins = [
   "https://studyvault.space",
   "https://www.studyvault.space",
+  "https://www.studyvault.cfd",
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:8081",
